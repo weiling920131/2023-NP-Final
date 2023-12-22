@@ -1,15 +1,18 @@
+#include "slither.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
+#include <string>
 #include <vector>
+#include <iostream>
 
 #define BOARDSIZE 5
 
 using namespace std;
 
 // black white empty
-const char *piece[3] = {"\033[40m    \033[43m", "\033[47m    \033[43m", "    "};
+const string piece[3] = {"\033[40m    \033[43m", "\033[47m    \033[43m", "    "};
 vector<int> board(25, 2);
 
 char s1[] = "\033[31m ███████╗\033[91m ██╗     \033[93m ██╗\033[32m ████████╗\033[36m ██╗  ██╗\033[34m ███████╗\033[35m ██████╗ ",
@@ -86,19 +89,19 @@ void printBoard(vector<int> board) {
         if (i < BOARDSIZE) {
             printf(" ");
             for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]]);
+                printf("|  %s  ", piece[board[idx+k]].c_str());
             }
             printf("| \n\033[36C ");
             for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]]);
+                printf("|  %s  ", piece[board[idx+k]].c_str());
 
             }
             printf("| \n");
         }
     }
-    printf("\n");
     // reset gray background
     printf("\033[100m");
+    printf("     A         B        C        D        E\n");
     // move cursor to middle
     printf("\033[36C");
     // make cursor visible
@@ -117,10 +120,10 @@ int main() {
         fgets(input, sizeof(input), stdin);
         if (sscanf(input, "%d %d %d", &s, &m, &p) != 3) {
             // move cursor to middle
-            printf("\033[27;37H\033[0K");
+            printf("\033[32;37H\033[0K");
             printf("illegal move!\n");
             // erase previous input
-            printf("\033[26;37H\033[0K");
+            printf("\033[31;37H\033[0K");
             continue;
         }
         if (s != -1 && m != -1) {
@@ -130,19 +133,19 @@ int main() {
             }
             else {
                 // move cursor to middle
-                printf("\033[27;37H\033[0K");
+                printf("\033[32;37H\033[0K");
                 printf("illegal move!\n");
                 // erase previous input
-                printf("\033[26;37H\033[0K");
+                printf("\033[31;37H\033[0K");
                 continue;
             }
         }
         else if (s == -1 ^ m == -1) {
             // move cursor to middle
-            printf("\033[27;37H\033[0K");
+            printf("\033[32;37H\033[0K");
             printf("illegal move!\n");
             // erase previous input
-            printf("\033[26;37H\033[0K");
+            printf("\033[31;37H\033[0K");
             continue;
         }
         if (p != -1 && board[p] == 2) {
@@ -150,10 +153,10 @@ int main() {
         }
         else {
             // move cursor to middle
-            printf("\033[27;37H\033[0K");
+            printf("\033[32;37H\033[0K");
             printf("illegal move!\n");
             // erase previous input
-            printf("\033[26;37H\033[0K");
+            printf("\033[31;37H\033[0K");
             continue;
         }
         printBoard(board);

@@ -1,71 +1,40 @@
-#include "clap/game/slither/slither.h"
+#include "slither.h"
 
 #include <algorithm>
 #include <iomanip>
-#include <numeric>
-#include <sstream>
 #include <stack>
 #include <iostream>
-#include <fstream>
 
-namespace clap::game::slither {
-
-SlitherState::SlitherState(GamePtr game_ptr)
-    : State(std::move(game_ptr)),
-      turn_(0),
-      skip_(0),
-      winner_(-1) {
-  std::fill(std::begin(board_), std::end(board_), EMPTY);
-  history_.clear();
+Player State::current_player() const {
+  return (Player)((turn_ % 6) / 3);
 }
-int SlitherGame::getBoardSize() const {
-	return kBoardSize;
+Player State::get_winner() const {
+  return winner_;
 }
-bool SlitherGame::save_manual(const std::vector<Action> actions, const std::string savepath) const {
-	std::fstream sgf_file(savepath, std::fstream::out | std::fstream::app);
-	if (sgf_file.is_open()) {
-		auto pos_int_to_char = [](const int pos) {
-			int rpos = pos / kBoardSize;
-			int cpos = pos % kBoardSize;
-			std::string res;
-			res.push_back(cpos + 'A');
-			res.push_back(kBoardSize - rpos - 1 + 'A');
-			return res;
-		};
-		sgf_file << "(";
-		sgf_file << ";GM[511]";
-		for (int i = 0; i < actions.size(); ) {
-			std::vector<Action> one_move;
-			for (int j = 0; j < 3; ++i, ++j) {
-				one_move.push_back(actions[i]);
-			}
-			if (one_move[0] < kNumOfGrids) {
-				sgf_file << ((((i / 3) % 2) != 0) ? ";B[" : ";W[");
-				sgf_file << pos_int_to_char(one_move[0]);
-				sgf_file << pos_int_to_char(one_move[1]);
-				sgf_file << "]";
-			}
-			sgf_file << ((((i / 3) % 2) != 0) ? ";B[" : ";W[");
-			sgf_file << pos_int_to_char(one_move[2]);
-			sgf_file << "]";
-		}
-		sgf_file << ")";
-		sgf_file << "\n";
-		
-		sgf_file.close();
-		return true;
+std::vector<Action> State::legal_actions() const {
+	std::vector<Action> actions;
+	if(turn_ % 3 == 0) {// empty
+		// actions.push_back(empty_index);
 	}
-	return false;
-}
+	else if(turn_ % 3 == 1 && skip_ == 1){
+		actions.push_back(empty_index);
+		return actions;
+	}
+	for (uint32_t i = 0; i <= kNumOfGrids; i++) {
+		if (is_legal_action(i)) {
+			actions.push_back(i);
+		}
+	}
+	if (actions.empty()) {
+		actions.push_back(empty_index);
+	}
 
-StatePtr SlitherState::clone() const {
-  return std::make_unique<SlitherState>(*this);
+	return actions;
 }
-
-void SlitherState::apply_action(const Action &action) {
-  //std::cout << "current turn:" << turn_ << "\n"; 
-  //std::cout << "action:" << action << '\n';
-  if (turn_ % 3 == 0) {  // choose
+void State::apply_action(const Action &action) {
+    //std::cout << "current turn:" << turn_ << "\n"; 
+    //std::cout << "action:" << action << '\n';
+    if (turn_ % 3 == 0) {  // choose
 		if (action == empty_index) skip_ = 1;
 		++turn_;
 		history_.push_back(action);
@@ -120,137 +89,26 @@ void SlitherState::apply_action(const Action &action) {
 		}
 	}
 }
-
-std::vector<Action> SlitherState::legal_actions() const {
-	std::vector<Action> actions;
-	if(turn_ % 3 == 0) {// empty
-		// actions.push_back(empty_index);
-	}
-	else if(turn_ % 3 == 1 && skip_ == 1){
-		actions.push_back(empty_index);
-		return actions;
-	}
-	for (uint32_t i = 0; i <= kNumOfGrids; i++) {
-		if (is_legal_action(i)) {
-			actions.push_back(i);
-		}
-	}
-	if (actions.empty()) {
-		actions.push_back(empty_index);
-	}
-
-	return actions;
+bool State::is_terminal() const {
+  return (winner_ != -1);
 }
+std::string State::to_string() const {
+    std::stringstream ss;
+    const std::vector<std::string> chess{"x", "o", "·"};
 
-bool SlitherState::is_legal_action(const Action &action) const {
-	if (action < 0 || action > kNumOfGrids) return false;
-	const Player player = current_player();
-	if (turn_ % 3 == 0) {  // choose
-		if ((board_[action] == player && have_move(action)) || action == kNumOfGrids) {
-			// return true;
-			return is_selecting_valid(action, player);
-		}
-	}
-	else if (turn_ % 3 == 1) {  // move
-		const Action &src = history_[history_.size() - 1];
-		if (board_[action] == EMPTY) {
-			if ((std::abs(action / kBoardSize - src / kBoardSize) <= 1) &&
-				(std::abs(action % kBoardSize - src % kBoardSize) <= 1)){
-				// return true;
-				return is_moving_valid(src, action, player);
-			}
-		}
-		return false;
-	} else {  // new chess
-		if(board_[action] == EMPTY) {
-			// return true;
-			Action src = history_[history_.size() - 2];
-			Action dst = history_[history_.size() - 1];
-			if (dst == empty_index) {
-				return is_placing_valid(action, player);
-			}
-
-			std::vector<int> constrained_points = get_restrictions(src, dst, player);
-			// if the moving action gets no restriction, or if placing action is a possible valid option
-			if (constrained_points.empty() || std::find(constrained_points.begin(), constrained_points.end(), action) != constrained_points.end()) {
-				return is_placing_valid(action, player);
-			}
-		}
-	}
-	return false;
-}
-
-bool SlitherState::have_move(const Action &action) const {
-  for (int const &diff : MoveDirection) {
-    int dest = action + diff;
-    if ((dest >= 0 && dest < kNumOfGrids && board_[dest] == EMPTY) &&
-        (std::abs(dest / kBoardSize - action / kBoardSize) <= 1) &&
-        (std::abs(dest % kBoardSize - action % kBoardSize) <= 1)) {
-      return true;
+    for (int i = 0; i < kBoardSize; ++i) {
+        ss << std::setw(2) << std::setfill(' ') << kBoardSize - i;
+        for (int j = 0; j < kBoardSize; ++j) {
+            ss << ' ' << chess[board_[i * kBoardSize + j]];
+        }
+        ss << std::endl;
     }
-  }
-  return false;
+    ss << "  ";
+    for (int i = 0; i < kBoardSize; ++i) ss << ' ' << static_cast<char>('A' + i);
+    return ss.str();
 }
 
-bool SlitherState::have_win(const Action &action) const {
-	if (action < 0 || action >= kNumOfGrids) return false;
-	const Player player = board_[action];
-	std::stack<int> pieces;
-	pieces.push(int(action));
-	int traversed[kNumOfGrids] = {0}; //const
-	traversed[action] = 1;
-	int head = 0, tail = 0; 
-	while(!pieces.empty()){
-		int cur = pieces.top();
-		pieces.pop();
-		int u = cur + MoveDirection[1];
-		int l = cur + MoveDirection[3];
-		int r = cur + MoveDirection[4];
-		int b = cur + MoveDirection[6];
-		int top_check = 1, bottom_check = 1, left_check = 1, right_check = 1;
-		if(cur / kBoardSize == 0) top_check = 0;
-		if(cur / kBoardSize == kBoardSize - 1) bottom_check = 0;
-		if(cur % kBoardSize == 0) left_check = 0;
-		if(cur % kBoardSize == kBoardSize - 1) right_check = 0;
-		if(top_check && traversed[u] == 0 && board_[u] == player){
-			traversed[u] = 1;
-			pieces.push(u);
-		}
-		if(left_check && traversed[l] == 0 && board_[l] == player){
-			traversed[l] = 1;
-			pieces.push(l);
-		}
-		if(right_check && traversed[r] == 0 && board_[r] == player){
-			traversed[r] = 1;
-			pieces.push(r);
-		}
-		if(bottom_check && traversed[b] == 0 && board_[b] == player){
-			traversed[b] = 1;
-			pieces.push(b);
-		}
-	}
-	if(player == BLACK){
-		for(int i = 0; i < kBoardSize; i++){
-			if(traversed[i] == 1)
-				head = 1;
-			if(traversed[kBoardSize * (kBoardSize - 1) + i] == 1)
-				tail = 1;
-		}
-	}
-	else{
-		for(int i = 0; i < kBoardSize; i++){
-			if(traversed[i*kBoardSize] == 1)
-				head = 1;
-			if(traversed[kBoardSize * (i+1) - 1] == 1)
-				tail = 1;
-		}
-	}
-	if(head && tail){
-		return true;
-	}
-	return false;
-}
-std::vector<int> SlitherState::get_restrictions(const Action src, const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
+std::vector<int> State::get_restrictions(const Action src, const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
 	// return empty vector if there is no restriction
 	const std::vector<int> kValid = {};
 	// empty_index is used to mark the existence of restriction
@@ -420,8 +278,7 @@ std::vector<int> SlitherState::get_restrictions(const Action src, const Action a
 
 	return constrained_points;
 }
-
-bool SlitherState::is_selecting_valid(const Action action, const Player player) const {
+bool State::is_selecting_valid(const Action action, const Player player) const {
 	auto CheckPostion = [=](Action pos, Action check) -> bool{ 
 		if (check < 0 || check >= empty_index) return false;
 
@@ -458,22 +315,7 @@ bool SlitherState::is_selecting_valid(const Action action, const Player player) 
 
 	return false;
 }
-
-bool SlitherState::is_placing_valid(const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
-	return get_restrictions(empty_index, action, player, bptr).size() != 1;
-}
-
-bool SlitherState::is_placing_valid(const Player player, std::array<short, kNumOfGrids>* bptr) const {
-	std::array<short, kNumOfGrids> mimic_board = (!bptr) ? board_ : *bptr;
-	for (int i = 0; i < kNumOfGrids; ++i) {
-		if (mimic_board[i] == EMPTY) {
-			if (is_placing_valid(i, player, &mimic_board)) return true;
-		}
-	}
-	return false;
-}
-
-bool SlitherState::is_moving_valid(const Action src, const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
+bool State::is_moving_valid(const Action src, const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
 	std::vector<int> constrained_points = get_restrictions(src, action, player, bptr);
 	std::array<short, kNumOfGrids> mimic_board = board_;
 	mimic_board[src] = EMPTY;
@@ -483,8 +325,125 @@ bool SlitherState::is_moving_valid(const Action src, const Action action, const 
 	}
 	return get_restrictions(src, action, player, bptr).size() != 1;
 }
+bool State::is_placing_valid(const Action action, const Player player, std::array<short, kNumOfGrids>* bptr) const {
+	return get_restrictions(empty_index, action, player, bptr).size() != 1;
+}
+bool State::is_placing_valid(const Player player, std::array<short, kNumOfGrids>* bptr) const {
+	std::array<short, kNumOfGrids> mimic_board = (!bptr) ? board_ : *bptr;
+	for (int i = 0; i < kNumOfGrids; ++i) {
+		if (mimic_board[i] == EMPTY) {
+			if (is_placing_valid(i, player, &mimic_board)) return true;
+		}
+	}
+	return false;
+}
+bool State::is_legal_action(const Action &action) const {
+	if (action < 0 || action > kNumOfGrids) return false;
+	const Player player = current_player();
+	if (turn_ % 3 == 0) {  // choose
+		if ((board_[action] == player && have_move(action)) || action == kNumOfGrids) {
+			// return true;
+			return is_selecting_valid(action, player);
+		}
+	}
+	else if (turn_ % 3 == 1) {  // move
+		const Action &src = history_[history_.size() - 1];
+		if (board_[action] == EMPTY) {
+			if ((std::abs(action / kBoardSize - src / kBoardSize) <= 1) &&
+				(std::abs(action % kBoardSize - src % kBoardSize) <= 1)){
+				// return true;
+				return is_moving_valid(src, action, player);
+			}
+		}
+		return false;
+	} else {  // new chess
+		if(board_[action] == EMPTY) {
+			// return true;
+			Action src = history_[history_.size() - 2];
+			Action dst = history_[history_.size() - 1];
+			if (dst == empty_index) {
+				return is_placing_valid(action, player);
+			}
 
-bool SlitherState::is_valid(const Action &action) const {
+			std::vector<int> constrained_points = get_restrictions(src, dst, player);
+			// if the moving action gets no restriction, or if placing action is a possible valid option
+			if (constrained_points.empty() || std::find(constrained_points.begin(), constrained_points.end(), action) != constrained_points.end()) {
+				return is_placing_valid(action, player);
+			}
+		}
+	}
+	return false;
+}
+bool State::have_move(const Action &action) const {
+    for (int const &diff : MoveDirection) {
+        int dest = action + diff;
+        if ((dest >= 0 && dest < kNumOfGrids && board_[dest] == EMPTY) &&
+            (std::abs(dest / kBoardSize - action / kBoardSize) <= 1) &&
+            (std::abs(dest % kBoardSize - action % kBoardSize) <= 1)) {
+        return true;
+        }
+    }
+    return false;
+}
+bool State::have_win(const Action &action) const {
+	if (action < 0 || action >= kNumOfGrids) return false;
+	const Player player = board_[action];
+	std::stack<int> pieces;
+	pieces.push(int(action));
+	int traversed[kNumOfGrids] = {0}; //const
+	traversed[action] = 1;
+	int head = 0, tail = 0; 
+	while(!pieces.empty()){
+		int cur = pieces.top();
+		pieces.pop();
+		int u = cur + MoveDirection[1];
+		int l = cur + MoveDirection[3];
+		int r = cur + MoveDirection[4];
+		int b = cur + MoveDirection[6];
+		int top_check = 1, bottom_check = 1, left_check = 1, right_check = 1;
+		if(cur / kBoardSize == 0) top_check = 0;
+		if(cur / kBoardSize == kBoardSize - 1) bottom_check = 0;
+		if(cur % kBoardSize == 0) left_check = 0;
+		if(cur % kBoardSize == kBoardSize - 1) right_check = 0;
+		if(top_check && traversed[u] == 0 && board_[u] == player){
+			traversed[u] = 1;
+			pieces.push(u);
+		}
+		if(left_check && traversed[l] == 0 && board_[l] == player){
+			traversed[l] = 1;
+			pieces.push(l);
+		}
+		if(right_check && traversed[r] == 0 && board_[r] == player){
+			traversed[r] = 1;
+			pieces.push(r);
+		}
+		if(bottom_check && traversed[b] == 0 && board_[b] == player){
+			traversed[b] = 1;
+			pieces.push(b);
+		}
+	}
+	if(player == BLACK){
+		for(int i = 0; i < kBoardSize; i++){
+			if(traversed[i] == 1)
+				head = 1;
+			if(traversed[kBoardSize * (kBoardSize - 1) + i] == 1)
+				tail = 1;
+		}
+	}
+	else{
+		for(int i = 0; i < kBoardSize; i++){
+			if(traversed[i*kBoardSize] == 1)
+				head = 1;
+			if(traversed[kBoardSize * (i+1) - 1] == 1)
+				tail = 1;
+		}
+	}
+	if(head && tail){
+		return true;
+	}
+	return false;
+}
+bool State::is_valid(const Action &action) const {
 	if (action < 0 || action >= kNumOfGrids) return false;
 	const Player player = board_[action];
 	int top_check = 1, bottom_check = 1, left_check = 1, right_check = 1;
@@ -514,8 +473,7 @@ bool SlitherState::is_valid(const Action &action) const {
 		return false;
 	return true;
 }
-
-bool SlitherState::is_empty_valid(const Action &action) const {
+bool State::is_empty_valid(const Action &action) const {
 	if (action < 0 || action >= kNumOfGrids) return false;
 	if(board_[action] != EMPTY) return true;
 	int top_check = 1, bottom_check = 1, left_check = 1, right_check = 1;
@@ -545,249 +503,34 @@ bool SlitherState::is_empty_valid(const Action &action) const {
 		return false;
 	return true;
 }
-
-std::string SlitherState::to_string() const {
-  std::stringstream ss;
-//  const std::vector<std::string> chess{"●", "o", "·"};
-  const std::vector<std::string> chess{"x", "o", "·"};
-
-  for (int i = 0; i < kBoardSize; ++i) {
-    ss << std::setw(2) << std::setfill(' ') << kBoardSize - i;
-    for (int j = 0; j < kBoardSize; ++j) {
-        ss << ' ' << chess[board_[i * kBoardSize + j]];
+std::string State::action_to_string(const Action &action) const {
+    using namespace std::string_literals;
+    std::stringstream ss;
+    if(action == empty_index)
+        ss << "X";
+    else
+        ss << "ABCDEFGHIJKLM"s.at(action % kBoardSize) << kBoardSize - (action / kBoardSize);
+    return ss.str();
+}
+std::vector<Action> State::string_to_action(const std::string &str) const {
+    std::string wopunc = str;
+    wopunc.erase(std::remove_if(wopunc.begin(), wopunc.end(), ispunct),
+                wopunc.end());
+    std::stringstream ss(wopunc);
+    std::string action;
+    std::vector<Action> id;
+    while (ss >> action) {
+        if (action.at(0) == 'X' || action.at(0) == 'x') {
+        id.push_back(empty_index);
+        } else if (action.at(0) >= 'a' && action.at(0) <= 'z') {
+        int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
+                    (action.at(0) - 'a');
+        id.push_back(tmp);
+        } else {
+        int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
+                    (action.at(0) - 'A');
+        id.push_back(tmp);
+        }
     }
-    ss << std::endl;
-  }
-  ss << "  ";
-  for (int i = 0; i < kBoardSize; ++i) ss << ' ' << static_cast<char>('A' + i);
-  return ss.str();
+    return id;
 }
-
-bool SlitherState::is_terminal() const {
-  //return (winner_ != -1) || (legal_actions().empty());
-  return (winner_ != -1);
-}
-
-Player SlitherState::current_player() const {
-  return (Player)((turn_ % 6) / 3);
-}
-
-Player SlitherState::get_winner() const {
-  return winner_;
-}
-
-std::vector<float> SlitherState::observation_tensor() const {
-  std::vector<float> tensor;
-  tensor.reserve(4 * kNumOfGrids); //8 * 6 * 6
-  Player player = current_player();
-  for (int i = 0; i < kNumOfGrids; ++i) {
-    tensor.push_back(static_cast<float>(board_[i] == player));
-  }
-  for (int i = 0; i < kNumOfGrids; ++i) {
-    tensor.push_back(static_cast<float>(board_[i] == 1 - player));
-  }
-  /*
-  00: turn % 3 == 0
-  01: turn % 3 == 1
-  10: turn % 3 == 2
-  11: unused
-  */
-  for (int i = 0; i < kNumOfGrids; ++i) {
-    tensor.push_back(static_cast<float>((turn_ % 3 == 2)));
-  }
-  for (int i = 0; i < kNumOfGrids; ++i) {
-    tensor.push_back(static_cast<float>((turn_ % 3 == 1)));
-  }
-  return tensor;
-}
-
-std::vector<float> SlitherState::returns() const {
-  if (winner_ == BLACK) {
-    return {1.0, -1.0};
-  }
-  if (winner_ == WHITE) {
-    return {-1.0, 1.0};
-  }
-  return {0.0, 0.0};
-}
-
-std::string SlitherState::serialize() const {
-  std::stringstream ss;
-  for (const Action action : history_) {
-    ss << action << " ";
-  }
-  return ss.str();
-}
-
-std::string SlitherState::serialize_num_to_char() const {
-	std::string num_to_char = serialize();
-
-  	std::stringstream ss1;
-    ss1<<num_to_char;
-    std::string tmp;
-    std::string res="";
-
-	res+="SZ[";
-	res+=std::to_string(kBoardSize);
-	res+="]";
-	
-    bool color = 1;
-    int counter = 3;
-    while(ss1>>tmp) {
-	  res+=";";
-      int num = stoi(tmp);
-	  
-      int row = num/kBoardSize;
-      int col = num%kBoardSize;
-      if(color) {
-          res+="B[";
-      }else {
-          res+="W[";
-      }
-	  if(num==kBoardSize*kBoardSize) {
-		res+="X]";
-		counter--;
-		if(counter==0) {
-			counter=3;
-			color = !color;
-		}
-		continue;
-	  }
-      res+=char(col+'A');
-
-      res+=std::to_string(kBoardSize-(row));
-    //   res+=char(row+'1');
-      counter--;
-      if(counter==0) {
-		counter=3;
-        color = !color;
-      }
-      res+="]";
-    }
-	return res;
-}
-
-std::string SlitherGame::name() const {
-  return "slither";
-}
-int SlitherGame::num_players() const { return 2; }
-int SlitherGame::num_distinct_actions() const {
-  return kPolicyDim;
-}
-std::vector<int> SlitherGame::observation_tensor_shape() const {
-  return {4, kBoardSize, kBoardSize};
-}
-
-StatePtr SlitherGame::new_initial_state() const {
-  return std::make_unique<SlitherState>(shared_from_this());
-}
-
-int SlitherGame::num_transformations() const { return 4; }
-
-std::vector<float> SlitherGame::transform_observation(
-    const std::vector<float> &observation, int type) const {
-  std::vector<float> data(observation);
-  if (type != 0) {
-    int feature_num = (int)observation.size() / kNumOfGrids;
-    for (int i = 0; i < feature_num; i++) {
-      for (int index = 0; index < kNumOfGrids; index++) {
-        int new_index = transform_index(index, type);
-        data[i * kNumOfGrids + new_index] =
-            observation[i * kNumOfGrids + index];
-      }
-    }
-  }
-  return data;
-}
-
-std::vector<float> SlitherGame::transform_policy(
-    const std::vector<float> &policy, int type) const {
-  std::vector<float> data(policy);
-  if (type != 0) {
-    for (int index = 0; index < kNumOfGrids; index++) {
-      int new_index = transform_index(index, type);
-      data[new_index] = policy[index];
-    }
-  }
-  return data;
-}
-
-std::vector<float> SlitherGame::restore_policy(
-    const std::vector<float> &policy, int type) const {
-  std::vector<float> data(policy);
-  if (type != 0) {
-    for (int index = 0; index < kNumOfGrids; index++) {
-      int new_index = transform_index(index, type);
-      data[new_index] = policy[index];
-    }
-  }
-  return data;
-}
-
-int SlitherGame::transform_index(const int &index, const int type) const {
-  if (type == 0) {
-    return index;
-  } else {
-    int i = index / kBoardSize;
-    int j = index % kBoardSize;
-    if (type == 1) { // reflect horizontal
-      j = (kBoardSize - 1) - j;
-    }
-    else if (type == 2) { // reflect vertical
-      i = (kBoardSize - 1) - i;
-    }
-    else if (type == 3) { // reverse
-      i = (kBoardSize - 1) - i;
-      j = (kBoardSize - 1) - j;
-    }
-    return i * kBoardSize + j;
-  }
-}
-
-std::string SlitherGame::action_to_string(
-    const Action &action) const {
-  using namespace std::string_literals;
-  std::stringstream ss;
-  if(action == empty_index)
-	  ss << "X";
-  else
-	ss << "ABCDEFGHIJKLM"s.at(action % kBoardSize) << kBoardSize - (action / kBoardSize);
-  return ss.str();
-}
-
-std::vector<Action> SlitherGame::string_to_action(
-    const std::string &str) const {
-  std::string wopunc = str;
-  wopunc.erase(std::remove_if(wopunc.begin(), wopunc.end(), ispunct),
-               wopunc.end());
-  std::stringstream ss(wopunc);
-  std::string action;
-  std::vector<Action> id;
-  while (ss >> action) {
-	if (action.at(0) == 'X' || action.at(0) == 'x') {
-	  id.push_back(empty_index);
-    } else if (action.at(0) >= 'a' && action.at(0) <= 'z') {
-      int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
-                (action.at(0) - 'a');
-      id.push_back(tmp);
-    } else {
-      int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
-                (action.at(0) - 'A');
-      id.push_back(tmp);
-    }
-  }
-  return id;
-}
-
-StatePtr SlitherGame::deserialize_state(
-    const std::string &str) const {
-  std::stringstream ss(str);
-  int action;
-  StatePtr state = new_initial_state();
-  while (ss >> action) {
-    state->apply_action(action);
-  }
-  return state->clone();
-}
-
-}  // namespace clap::game::slither
