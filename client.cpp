@@ -165,7 +165,9 @@ int main(int argc, char **argv) {
 	servaddr.sin_port = htons(SERV_PORT+3);
 	inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
 
-	connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
+	if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) {
+        printf("QQ\n");
+    }
 
     printf("Type \"Create Room\" to create a new room\nType \"Enter Room\" to enter a random/the specific room.\n\n");
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
@@ -177,8 +179,14 @@ int main(int argc, char **argv) {
 
         }
         else if (strcmp(sendline, "Enter Room\n") == 0) {
-            write(sockfd, sendline, strlen(sendline));
+            printf("0\n");
+            printf("socket: %d sendline: %s, strlen: %d\n", sockfd, sendline, strlen(sendline));
+            if (write(sockfd, sendline, strlen(sendline)) < strlen(sendline)) {
+                printf("%d\n", errno);
+            }
+            printf("1\n");
             n = read(sockfd, recvline, MAXLINE);
+            printf("2\n");
             recvline[n] = 0;
             // if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
             //     printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
@@ -192,6 +200,9 @@ int main(int argc, char **argv) {
                 recvline[n] = 0;
                 printf("%s", recvline);
             // }
+        }
+        else {
+            printf("3\n");
         }
     }
 
