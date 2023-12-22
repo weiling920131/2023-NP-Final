@@ -180,18 +180,18 @@ int main(int argc, char **argv) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
-                printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
-                printf("%s", recvline);
-            }
-            else {
+            // if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
+            //     printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
+            //     printf("%s", recvline);
+            // }
+            // else {
                 printf("%s", recvline);
                 fgets(sendline, MAXLINE, stdin);
                 write(sockfd, sendline, strlen(sendline));
                 n = read(sockfd, recvline, MAXLINE);
                 recvline[n] = 0;
                 printf("%s", recvline);
-            }
+            // }
         }
     }
 
