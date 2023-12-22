@@ -6,10 +6,23 @@
 #include <iostream>
 
 Player State::current_player() const {
-  return (Player)((turn_ % 6) / 3);
+  	return (Player)((turn_ % 6) / 3);
 }
 Player State::get_winner() const {
-  return winner_;
+  	return winner_;
+}
+std::vector<int> State::get_board() const {
+	std::vector<int> board(kNumOfGrids);
+	for (int i=0; i<kNumOfGrids; i++) {
+		board[i] = board_[i];
+	}
+	return board;
+}
+void State::set_board(std::vector<int> board) {
+	for (int i=0; i<kNumOfGrids; i++) {
+		board_[i] = board[i];
+	}
+	return;
 }
 std::vector<Action> State::legal_actions() const {
 	std::vector<Action> actions;
@@ -520,16 +533,18 @@ std::vector<Action> State::string_to_action(const std::string &str) const {
     std::string action;
     std::vector<Action> id;
     while (ss >> action) {
-        if (action.at(0) == 'X' || action.at(0) == 'x') {
-        id.push_back(empty_index);
-        } else if (action.at(0) >= 'a' && action.at(0) <= 'z') {
-        int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
+        if (action.size() == 1 && (action.at(0) == 'X' || action.at(0) == 'x')) {
+        	id.push_back(empty_index);
+        } else if (action.size() == 2 && (action.at(0) >= 'a' && action.at(0) < 'a' + kBoardSize) && 
+										 (action.at(1) >= '1' && action.at(1) < '1' + kBoardSize)) {
+        	int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
                     (action.at(0) - 'a');
-        id.push_back(tmp);
-        } else {
-        int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
+        	id.push_back(tmp);
+        } else if (action.size() == 2 && (action.at(0) >= 'A' && action.at(0) < 'a' + kBoardSize) && 
+										 (action.at(1) >= '1' && action.at(1) < '1' + kBoardSize)) {
+        	int tmp = (kBoardSize - std::stoi(action.substr(1))) * kBoardSize +
                     (action.at(0) - 'A');
-        id.push_back(tmp);
+        	id.push_back(tmp);
         }
     }
     return id;

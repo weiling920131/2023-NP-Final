@@ -6,6 +6,18 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <cstring>
+
+#define SERV_PORT 7122
+#define MAXLINE 4096
+#define LISTENQ 1024
+#define SA struct sockaddr
 
 #define BOARDSIZE 5
 
@@ -13,7 +25,6 @@ using namespace std;
 
 // black white empty
 const string piece[3] = {"\033[40m    \033[43m", "\033[47m    \033[43m", "    "};
-vector<int> board(25, 2);
 
 char s1[] = "\033[31m ███████╗\033[91m ██╗     \033[93m ██╗\033[32m ████████╗\033[36m ██╗  ██╗\033[34m ███████╗\033[35m ██████╗ ",
      s2[] = "\033[31m ██╔════╝\033[91m ██║     \033[93m ██║\033[32m ╚══██╔══╝\033[36m ██║  ██║\033[34m ██╔════╝\033[35m ██╔══██╗ ",
@@ -84,9 +95,10 @@ void printBoard(vector<int> board) {
             }
         }
 
-        printf(" \n\033[36C");
+        printf(" \n\033[34C");
 
         if (i < BOARDSIZE) {
+            printf("\033[100m%d \033[43m", 5-i);
             printf(" ");
             for (int k = 0; k < BOARDSIZE; k++) {
                 printf("|  %s  ", piece[board[idx+k]].c_str());
@@ -100,7 +112,7 @@ void printBoard(vector<int> board) {
         }
     }
     // reset gray background
-    printf("\033[100m");
+    printf("\033[100m  ");
     printf("     A         B        C        D        E\n");
     // move cursor to middle
     printf("\033[36C");
@@ -109,58 +121,80 @@ void printBoard(vector<int> board) {
     return;
 }
 
-int main() {
+void game() {
+    State state;
     init();
     printSlitherMoving();
-    printBoard(board);
+    printBoard(state.get_board());
     
-    int s, m, p;
+    vector<Action> play;
     char input[10];
     while (1) {
+        // erase previous input
+        printf("\033[26;37H\033[0K");
         fgets(input, sizeof(input), stdin);
-        if (sscanf(input, "%d %d %d", &s, &m, &p) != 3) {
-            // move cursor to middle
-            printf("\033[32;37H\033[0K");
+        // move cursor to middle
+        printf("\033[27;37H\033[0K");
+
+        play = state.string_to_action(input);
+        if (play.size() != 3) {
             printf("illegal move!\n");
-            // erase previous input
-            printf("\033[31;37H\033[0K");
             continue;
-        }
-        if (s != -1 && m != -1) {
-            if (board[s] == 0 && board[m] == 2) {
-                board[s] = 2;
-                board[m] = 0;
-            }
-            else {
-                // move cursor to middle
-                printf("\033[32;37H\033[0K");
-                printf("illegal move!\n");
-                // erase previous input
-                printf("\033[31;37H\033[0K");
-                continue;
-            }
-        }
-        else if (s == -1 ^ m == -1) {
-            // move cursor to middle
-            printf("\033[32;37H\033[0K");
-            printf("illegal move!\n");
-            // erase previous input
-            printf("\033[31;37H\033[0K");
-            continue;
-        }
-        if (p != -1 && board[p] == 2) {
-            board[p] = 0;
         }
         else {
-            // move cursor to middle
-            printf("\033[32;37H\033[0K");
-            printf("illegal move!\n");
-            // erase previous input
-            printf("\033[31;37H\033[0K");
-            continue;
+            printf("%d %d %d\n", play[0], play[1], play[2]);
         }
-        printBoard(board);
+        // printBoard(state.get_board());
     }
+}
+
+int main(int argc, char **argv) {
+    int					sockfd, n;
+	struct sockaddr_in	servaddr;
+    char sendline[MAXLINE], recvline[MAXLINE];
+
+	if (argc != 2) {
+		printf("usage: ./client <IPaddress>");
+        return 0;
+    }
+
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(SERV_PORT+3);
+	inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
+
+	connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
+
+    printf("Type \"Create Room\" to create a new room\nType \"Enter Room\" to enter a random/the specific room.\n\n");
+    while (fgets(sendline, MAXLINE, stdin) != NULL) {
+        if (strcmp(sendline, "Create Room\n") == 0) {
+            write(sockfd, sendline, strlen(sendline));
+            n = read(sockfd, recvline, MAXLINE);
+            recvline[n] = 0;
+            printf("\n%s", recvline);
+
+        }
+        else if (strcmp(sendline, "Enter Room\n") == 0) {
+            write(sockfd, sendline, strlen(sendline));
+            n = read(sockfd, recvline, MAXLINE);
+            recvline[n] = 0;
+            if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
+                printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
+                printf("%s", recvline);
+            }
+            else {
+                printf("%s", recvline);
+                fgets(sendline, MAXLINE, stdin);
+                write(sockfd, sendline, strlen(sendline));
+                n = read(sockfd, recvline, MAXLINE);
+                recvline[n] = 0;
+                printf("%s", recvline);
+            }
+        }
+    }
+
 
     return 0;
 }

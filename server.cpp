@@ -186,7 +186,7 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0)
-                                write(connfd[i], "Waiting for the second player...\n", 32);
+                                write(connfd[i], "Waiting for the second player...\n", 33);
                                 players_fd[room_id].push_back(connfd[i]);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
                                 cur_room++;
@@ -202,6 +202,7 @@ int main(int argc, char **argv){
                         if(players_fd[room_id].size() == 0) continue;
                         room_list += to_string(room_id) + " " + to_string(players_fd[room_id].size()) + " " + to_string(viewers_fd[room_id].size()) + " ";
                     }
+                    if(room_list.size() == 0) room_list += "(There is no room avaliable. Please try again later or create a new room yourself.)";
                     room_list += "\n";
                     // sendline = room_list.c_str();
                     copy(room_list.begin(), room_list.end(), sendline);
@@ -227,7 +228,7 @@ int main(int argc, char **argv){
                     }
                     else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
                         if(viewers_fd[room_id].size() >= MAX_VIEWER){
-                            write(connfd[i], "Too many viewers!\n", 19);
+                            write(connfd[i], "Too many viewers!\n", 18);
                             continue;
                         }
                         write(connfd[i], "A gentleman should keep silent while watching.\n", 47);
