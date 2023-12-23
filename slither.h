@@ -9,7 +9,6 @@ using Action = int;
 
 constexpr int kBoardSize = 5;
 constexpr int kNumOfGrids = kBoardSize * kBoardSize;
-constexpr int kPolicyDim = kNumOfGrids + 1;
 constexpr int empty_index = kNumOfGrids; // 25 in 5 * 5 board
 constexpr std::array<int, 8> MoveDirection = {-kBoardSize-1, -kBoardSize, -kBoardSize+1, -1, +1, +kBoardSize-1, +kBoardSize, +kBoardSize+1}; //ul, u, ur, l, r, bl, b, br
 

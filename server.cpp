@@ -154,13 +154,14 @@ int main(int argc, char **argv){
         // Accept client 
         if(FD_ISSET(listenfd, &rset)){
             std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
-            int available = distance(connfd.begin(), it); 
+            int available = it - connfd.begin();
             
             if(available >= MAX_CLIENT){ // Too many clients
                 printf("Too many clients!\n");
             }
             else{ //setting
                 connfd[available] = accept(listenfd, (SA *) &cliaddr[available], &clilen[available]);
+                write(connfd[available], "Connect sucessfully!\n", 21);
             }
         }
 
