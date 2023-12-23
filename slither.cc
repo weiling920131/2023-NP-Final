@@ -1,5 +1,5 @@
 #include "slither.h"
-
+#include <sstream>
 #include <algorithm>
 #include <iomanip>
 #include <stack>

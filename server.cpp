@@ -1,3 +1,4 @@
+#include    "slither.h"
 #include    <sys/wait.h>
 #include    <sys/types.h>
 #include    <sys/socket.h>
@@ -24,17 +25,18 @@ int MAX_CLIENT = 20;
 int MAX_CHATROOM = 10;
 int MAX_VIEWER = 10;
 int cur_room = 0;
-// pthread_t my_thread[MAX_CHATROOM];
 vector<pthread_t> my_thread(MAX_CHATROOM);
 vector<vector<int>> players_fd(MAX_CHATROOM);
 vector<vector<int>> viewers_fd(MAX_CHATROOM);
 
 void *game_room(void* room_id_void){
-    int                room_id = *(int*)room_id_void;
+    int                room_id = *(int*)room_id_void, n;
     unordered_map<int, string>     player_id;
-    char                send[MAXLINE], recv[MAXLINE];
+    char                sendline[MAXLINE], recvline[MAXLINE];
     int                 maxfdp1;
 	fd_set		        rset;
+
+    State game;
 
     for( ; ; ){
         int Max = 0;
@@ -50,70 +52,53 @@ void *game_room(void* room_id_void){
         maxfdp1 = Max + 1;
         select(maxfdp1, &rset, NULL, NULL, NULL);
 
-        
+        for(int i = 0;i<players_fd[room_id].size();i++){
+            auto p = players_fd[room_id][i];
+
+            if(FD_ISSET(p, &rset)){
+                if(player_id.find(p) == player_id.end()){ // if the player is new
+                    if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                        printf("From %d: Disconnect!\n", p);
+                        players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
+                        player_id.erase(p);
+                        cur_room--;
+                        continue;
+                    }
+
+                    recvline[n-1] = 0;
+                    player_id[p] = recvline;
+                    if(players_fd[room_id].size() == 1){ // if the player is the first player
+                        write(p, "Waiting for the second player...\n", 33);
+                        printf("To %d: Waiting for the second player...\n", p);
+                    }
+                    else{
+                        write(p, "Game Start!\n", 12);
+                        printf("To %d: Game Start!\n", p);
+                        write(players_fd[room_id][0], "Is your turn\n", 12);
+                    }
+
+                }
+                else{
+                    if(n = read(p, recvline, MAXLINE) > 0) {
+                        recvline[n-1] = 0;
+                    }
+                    else{
+                        printf("From %d: Disconnect!\n", p);
+                        players_fd[room_id].clear();
+                        cur_room--;
+                        // TODO : send message to the other player and determine who wins
+                        pthread_exit(NULL);
+                    }
+                }
+            }
+        }
 
     }
 
 }
 
-// void Lobby(int connfd){
-//     int n;
-//     char recvline[MAXLINE], sendline[MAXLINE];
-//     // Let client choose to create or enter a room
-//     write(connfd, "Type \"Create Room\" to create a new room\n\nType \"Enter Room\" to enter a random/the specific room.\n", 96);
-//     n = Read(connfd, recvline, MAXLINE);
-//     recvline[n] = 0;
-//     if(strcmp(recvline, "Create Room\n") == 0){
-//         if(cur_room >= MAXCHATROOM){
-//             write(connfd, "Too many chat rooms!\n", 21);
-//             continue;
-//         }
-//         else{
-//             write(connfd, "Waiting for the second player...\n", 32);
-//             players_fd[cur_room].push_back(connfd);
-//             pthread_create(&my_thread[cur_room], NULL, game_room, cur_room);
-//             cur_room++;
-//         }
-//     }
-//     else if(strcmp(recvline, "Enter Room\n") == 0){
-//         write(connfd, "Type \"random\" to enter a random room\n\nType (0 - 9) to enter the room\n", 69);
-//         n = Read(connfd, recvline, MAXLINE);
-//         recvline[n] = 0;
-//         if(strcmp(recvline, "random\n") == 0){    //Random enter a room
-
-//         }
-//         else if (isdigit(recvline[0])){           // Is a number
-//             int room_id = recvline[0] - '0';
-//             if(room_id >= MAX_CHATROOM || room_id < 0){
-//                 write(connfd, "Invalid room id!\n", 17);
-//                 continue;
-//             }
-//             else if(players_fd[room_id].size() == 0){ // Enter an empty room
-//                 write(connfd, "Empty room!\n", 12);
-//                 continue;
-//             }
-//             else if(players_fd[room_id].size() == 1){ // Enter a room with one player
-//                 write(connfd, "Waiting for the second player...\n", 32);
-//                 players_fd[room_id].push_back(connfd);
-//                 pthread_create(&my_thread[room_id], NULL, game_room, room_id);
-//             }
-//             else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
-//                 write(connfd, "Room is full!\n", 14);
-//                 continue;
-//             }
-//         }
-//         else{
-
-//         }
-//     }
-//     else{
-//         write(connfd, "Invalid input!\n", 15);
-//         continue;
-//     }
-// }
-
 int main(int argc, char **argv){
-	int					listenfd, cur_room = 0;
+	int					listenfd;
     pid_t               childpid;
 	struct sockaddr_in	servaddr;
 
@@ -192,8 +177,8 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0) {
-                                write(connfd[i], "Waiting for the second player...\n", 33);
-                                printf("To %d: Waiting for the second player...\n", connfd[i]);
+                                // write(connfd[i], "Waiting for the second player...\n", 33);
+                                // printf("To %d: Waiting for the second player...\n", connfd[i]);
 
                                 players_fd[room_id].push_back(connfd[i]);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
