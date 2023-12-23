@@ -136,7 +136,9 @@ int main(int argc, char **argv){
     int                         maxfdp1, n;
 	fd_set		                rset;
 
+    printf("Server running...waiting for connections.\n");
     for ( ; ; ) { //Deal with socket
+        printf("check\n");
         char recvline[MAXLINE], sendline[MAXLINE];
 
 	    FD_ZERO(&rset);
@@ -150,33 +152,39 @@ int main(int argc, char **argv){
         }
         maxfdp1 = Max + 1;
 		select(maxfdp1, &rset, NULL, NULL, NULL);
-
+        printf("check1\n");
         // Accept client 
         if(FD_ISSET(listenfd, &rset)){
             std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
             int available = distance(connfd.begin(), it); 
+            printf("check2\n");
             
             if(available >= MAX_CLIENT){ // Too many clients
                 printf("Too many clients!\n");
             }
             else{ //setting
                 connfd[available] = accept(listenfd, (SA *) &cliaddr[available], &clilen[available]);
+                printf("Clientfd %d connected\n", connfd[available]);
             }
         }
 
         // Deal with client with every cases
         for(int i = 0;i<MAX_CLIENT;i++){
+            printf("check3\n");
+
             if(connfd[i] != -1 && FD_ISSET(connfd[i], &rset)){
+                printf("check4\n");
                 n = read(connfd[i], recvline, MAXLINE);
                 
                 if(n == 0){ // Client close
+                    printf("Clientfd %d closed\n", connfd[i]);
                     connfd[i] = -1;
                     bzero(&cliaddr[i], sizeof(cliaddr[i]));
                     bzero(&clilen[i], sizeof(clilen[i]));
                     continue;
                 }
                 recvline[n] = 0;
-
+                printf("Clientfd %d: %s", connfd[i], recvline);
                 // Deal with client's input
                 if(strcmp(recvline, "Create Room\n") == 0){ // Create a room
                     if(cur_room >= MAX_CHATROOM){
