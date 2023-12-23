@@ -22,9 +22,22 @@
 
 using namespace std;
 
-void game() {
+void game(Player player) {
     State state;
     printBoard(state.get_board());
+
+    // BLACK
+    if (player == 0) {
+
+    }
+    // WHITE
+    else if (player == 1) {
+
+    }
+    // Spectator
+    else {
+
+    }
     
     vector<Action> play;
     char input[10];
@@ -69,46 +82,80 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    // Connect sucessfully
+    // Connect successfully!
     read(sockfd, recvline, MAXLINE);
 
     init();
     printServ();
-    printServMsg("Welcome to Slither!\n");
-    printServMsg("Type \"Create Room\" to create a new room.");
-    printServMsg("Type \"Enter Room\" to enter a room.\n");
+    printServMsg("Welcome to Slither!"); printf("\n");
+    printServMsg("Type \033[93mC\033[30m to create a new room.");
+    printServMsg("Type \033[93mE\033[30m to enter a room.");
 
     printCli();
+    int flag = 0;
 
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
-        if (strcmp(sendline, "Create Room\n") == 0) {
+        if (flag == 0 && strcmp(sendline, "C\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            printf("\n%s", recvline);
-
-        }
-        else if (strcmp(sendline, "Enter Room\n") == 0) {
-            if (write(sockfd, sendline, strlen(sendline)) < strlen(sendline)) {
-                printf("%d\n", errno);
+            if (strcmp(recvline, "Too many game rooms!\n") == 0) {
+                printServ();
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
             }
+            else {
+                game(0);
+            }
+        }
+        else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
+            write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            // if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
-            //     printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
-            //     printf("%s", recvline);
-            // }
-            // else {
-                printf("%s", recvline);
-                fgets(sendline, MAXLINE, stdin);
-                write(sockfd, sendline, strlen(sendline));
-                n = read(sockfd, recvline, MAXLINE);
-                recvline[n] = 0;
-                printf("%s", recvline);
-            // }
+            if (strcmp(recvline, "\n") == 0) {
+                printServ();
+                printServMsg("There is no avaliable room."); printf("\n");
+                printServMsg("Please try again later");
+                printServMsg("or create a new room yourself."); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
+            }
+            else {
+                printServ();
+                printServMsg("Type \033[93m0\033[30m - \033[93m9\033[30m to enter the room by \033[34mID\033[30m");
+                printServMsg("or type \033[93mR\033[30m to enter a random room."); printf("\n");
+                printServMsg("\033[34mRoom ID\033[30m  Players  Viewers");
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 1;
+            }
         }
-        else {
+        else if (flag == 1 && (isdigit(sendline[0]) || strcmp(sendline, "R\n") == 0)) {
+            write(sockfd, sendline, strlen(sendline));
+            n = read(sockfd, recvline, MAXLINE);
+            recvline[n] = 0;
+            if (strcmp(recvline, "Game Start!\n") == 0) {
+                game(1);
+            }
+            else if (strcmp(recvline, "A gentleman should keep silent while watching.\n") == 0) {
+                game(2);
+            }
+            else {
+                printServ();
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
+            }
         }
+        else if (strcmp(sendline, "B\n") == 0) {
+            flag = 0;
+            printServ();
+            printServMsg("Welcome to Slither!"); printf("\n");
+            printServMsg("Type \033[93mC\033[30m to create a new room.");
+            printServMsg("Type \033[93mE\033[30m to enter a room.");
+        }
+        printCli();
     }
 
 

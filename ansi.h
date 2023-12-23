@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <sstream>
 #include <unistd.h>
 #define BOARDSIZE 5
 using namespace std;
@@ -36,7 +37,7 @@ string cli_cat[12] = {
     "   )===(",
     " /       \\",
     " |       |",
-    "/   YOU   \\",
+    "/   \033[32mYOU\033[30m   \\",
     "\\         /",
     " \\___  __/",
     "    ( (",
@@ -44,7 +45,28 @@ string cli_cat[12] = {
     "    (_("
 };
 
+string list[] = {
+    "      ______________________________",
+    "    ./                             / \\",
+    "    .|                            |   |",
+    "    .|                            | _/",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "    .|                            |",
+    "  ___|_________________________   |",
+    " .\\                            \\  |",
+    "  .\\____________________________\\_/"
+};
+
 void init() {
+    printf("\033]0;Slither\007");
     // set to 80*25 color mode
     printf("\033[=3h");
     // set screen size
@@ -90,27 +112,47 @@ void printSlither() {
 }
 
 void printServ() {
+    printf("\033[8H");
     for (const auto c: serv_cat) {
-        printf("\033[95C%s\n", c.c_str());
+        printf("\033[0K\033[95C%s\n", c.c_str());
     }
-    printf("\033[11;90H>\n");
-    printf("\033[11H");
+    printf("\033[10;90H>\n");
+    printf("\033[10H");
 }
 
 void printServMsg(string msg) {
-    printf("\033[40C%s\n", msg.c_str());
+    istringstream iss(msg);
+    string line;
+
+    while (getline(iss, line)) {
+        printf("\033[40C%s\n", line.c_str());
+    }
+    // make cursor invisible
+    printf("\033[?25l");
+}
+
+void printList(string msg) {
+    printf("")
+    for (const auto l: list) {
+        printf("")
+    }
+    istringstream iss(msg);
+    string line;
+
+    while (getline(iss, line)) {
+        printf("\033[40C%s\n", line.c_str());
+    }
 }
 
 void printCli() {
     printf("\033[18H");
     for (const auto c: cli_cat) {
-        printf("\033[20C%s\n", c.c_str());
+        printf("\033[15C%s\n", c.c_str());
     }
-    printf("\033[20;25H>\n");
-}
-
-void printCliMsg(string msg) {
-    printf("\033[40C%s\n", msg.c_str());
+    printf("\033[20;35H<\n");
+    printf("\033[20;41H\033[0K");
+    // make cursor visible
+    printf("\033[?25h");
 }
 
 void printBoard(vector<int> board) {
