@@ -13,6 +13,7 @@
 #include    <cctype>
 #include    <cstring>
 #include    <unordered_map>
+#include    <stdio.h>
 
 #define SERV_PORT 7122
 #define MAXLINE 4096
@@ -102,6 +103,13 @@ int main(int argc, char **argv){
     pid_t               childpid;
 	struct sockaddr_in	servaddr;
 
+    printf("\033]0;Slither Server\007");
+    printf("\033[=3h");
+    printf("\033[2J");
+
+    printf("Server running...\n");
+
+
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
 	bzero(&servaddr, sizeof(servaddr));
@@ -177,7 +185,7 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0) {
-                                // write(connfd[i], "Waiting for the second player...\n", 33);
+                                write(connfd[i], "Waiting for the second player...\n", 33);
                                 // printf("To %d: Waiting for the second player...\n", connfd[i]);
 
                                 players_fd[room_id].push_back(connfd[i]);

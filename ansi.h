@@ -46,7 +46,7 @@ string cli_cat[] = {
     "    (_("
 };
 
-string sleep_cat[] = {
+string sleeping_cat[] = {
     "  |\\      _,,,---,,_",
     "  /,`.-'`'    -.  ;-;;,_",
     " |,4-  ) )-,_..;\\ (  `'-'",
