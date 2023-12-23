@@ -22,9 +22,12 @@
 
 using namespace std;
 
+char sendline[MAXLINE], recvline[MAXLINE];
+
 void game(Player player) {
     State state;
     printBoard(state.get_board());
+    printf("%s", recvline);
 
     // BLACK
     if (player == 0) {
@@ -34,7 +37,7 @@ void game(Player player) {
     else if (player == 1) {
 
     }
-    // Spectator
+    // Viewer
     else {
 
     }
@@ -63,7 +66,6 @@ void game(Player player) {
 int main(int argc, char **argv) {
     int					sockfd, n;
 	struct sockaddr_in	servaddr;
-    char sendline[MAXLINE], recvline[MAXLINE];
 
 	if (argc != 2) {
 		printf("Usage: ./client <IPaddress>");
@@ -88,8 +90,7 @@ int main(int argc, char **argv) {
     init();
     printServ();
     printServMsg("Welcome to Slither!"); printf("\n");
-    printServMsg("Type \033[93mC\033[30m to create a new room.");
-    printServMsg("Type \033[93mE\033[30m to enter a room.");
+    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room.");
 
     printCli();
     int flag = 0;
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
             if (strcmp(recvline, "Too many game rooms!\n") == 0) {
                 printServ();
                 printServMsg(recvline); printf("\n");
-                printServMsg("Type \033[93mB\033[30m to return.");
+                printServMsg("Type \033[32mB\033[30m to return.");
                 flag = 2;
             }
             else {
@@ -116,22 +117,22 @@ int main(int argc, char **argv) {
             if (strcmp(recvline, "\n") == 0) {
                 printServ();
                 printServMsg("There is no avaliable room."); printf("\n");
-                printServMsg("Please try again later");
-                printServMsg("or create a new room yourself."); printf("\n");
-                printServMsg("Type \033[93mB\033[30m to return.");
+                printServMsg("Please try again later\nor create a new room yourself."); printf("\n");
+                printServMsg("Type \033[32mB\033[30m to return.");
                 flag = 2;
             }
             else {
                 printServ();
-                printServMsg("Type \033[93m0\033[30m - \033[93m9\033[30m to enter the room by \033[34mID\033[30m");
-                printServMsg("or type \033[93mR\033[30m to enter a random room."); printf("\n");
-                printServMsg("\033[34mRoom ID\033[30m  Players  Viewers");
-                printServMsg(recvline); printf("\n");
-                printServMsg("Type \033[93mB\033[30m to return.");
+                printServMsg("Type \033[32m0\033[30m - \033[32m9\033[30m to enter the room by \033[34mID\033[30m");
+                printServMsg("or type \033[32mR\033[30m to enter a random room."); printf("\n");
+                printServMsg("Type \033[32mB\033[30m to return.");
+
+                string roomlist = "\033[34mRoom ID\033[30m  Players  Viewers\n" + string(recvline);
+                printList(roomlist);
                 flag = 1;
             }
         }
-        else if (flag == 1 && (isdigit(sendline[0]) || strcmp(sendline, "R\n") == 0)) {
+        else if (flag == 1 && ((isdigit(sendline[0]) && sendline[1] == '\n') || strcmp(sendline, "R\n") == 0)) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
@@ -142,22 +143,23 @@ int main(int argc, char **argv) {
                 game(2);
             }
             else {
+                printSlither();
                 printServ();
                 printServMsg(recvline); printf("\n");
-                printServMsg("Type \033[93mB\033[30m to return.");
+                printServMsg("Type \033[32mB\033[30m to return.");
                 flag = 2;
             }
         }
         else if (strcmp(sendline, "B\n") == 0) {
             flag = 0;
+
+            printSlither();
             printServ();
             printServMsg("Welcome to Slither!"); printf("\n");
-            printServMsg("Type \033[93mC\033[30m to create a new room.");
-            printServMsg("Type \033[93mE\033[30m to enter a room.");
+            printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room.");
         }
         printCli();
     }
-
 
     return 0;
 }
