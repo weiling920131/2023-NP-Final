@@ -1,4 +1,3 @@
-// #include	"../unpv13e/lib/unp.h"
 #include    <sys/wait.h>
 #include    <sys/types.h>
 #include    <sys/socket.h>
@@ -150,7 +149,7 @@ int main(int argc, char **argv){
         }
         maxfdp1 = Max + 1;
 		select(maxfdp1, &rset, NULL, NULL, NULL);
-
+        // printf("check1\n");
         // Accept client 
         if(FD_ISSET(listenfd, &rset)){
             std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
@@ -168,7 +167,10 @@ int main(int argc, char **argv){
 
         // Deal with client with every cases
         for(int i = 0;i<MAX_CLIENT;i++){
+            // printf("check3\n");
+
             if(connfd[i] != -1 && FD_ISSET(connfd[i], &rset)){
+                // printf("check4\n");
                 n = read(connfd[i], recvline, MAXLINE);
                 
                 if(n <= 0){ // Client close
@@ -179,7 +181,7 @@ int main(int argc, char **argv){
                     continue;
                 }
                 recvline[n] = 0;
-
+                printf("Clientfd %d: %s", connfd[i], recvline);
                 // Deal with client's input
                 if(strcmp(recvline, "C\n") == 0){ // Create a room
                     if(cur_room >= MAX_CHATROOM){
