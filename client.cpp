@@ -1,4 +1,5 @@
 #include "slither.h"
+#include "ansi.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,113 +20,24 @@
 #define LISTENQ 1024
 #define SA struct sockaddr
 
-#define BOARDSIZE 5
-
 using namespace std;
 
-// black white empty
-const string piece[3] = {"\033[40m    \033[43m", "\033[47m    \033[43m", "    "};
-
-char s1[] = "\033[31m ███████╗\033[91m ██╗     \033[93m ██╗\033[32m ████████╗\033[36m ██╗  ██╗\033[34m ███████╗\033[35m ██████╗ ",
-     s2[] = "\033[31m ██╔════╝\033[91m ██║     \033[93m ██║\033[32m ╚══██╔══╝\033[36m ██║  ██║\033[34m ██╔════╝\033[35m ██╔══██╗ ",
-     s3[] = "\033[31m ███████╗\033[91m ██║     \033[93m ██║\033[32m    ██║   \033[36m ███████║\033[34m █████╗  \033[35m ██████╔╝ ",
-     s4[] = "\033[31m ╚════██║\033[91m ██║     \033[93m ██║\033[32m    ██║   \033[36m ██╔══██║\033[34m ██╔══╝  \033[35m ██╔══██╗ ",
-     s5[] = "\033[31m ███████║\033[91m ███████╗\033[93m ██║\033[32m    ██║   \033[36m ██║  ██║\033[34m ███████╗\033[35m ██║  ██║ ",
-     s6[] = "\033[31m ╚══════╝\033[91m ╚══════╝\033[93m ╚═╝\033[32m    ╚═╝   \033[36m ╚═╝  ╚═╝\033[34m ╚══════╝\033[35m ╚═╝  ╚═╝ ";    
-
-void init() {
-    // set to 80*25 color mode
-    printf("\033[=3h");
-    // set screen size
-    printf("\033[8;30;120t");
-    // set bold, black font, gray background
-    printf("\033[1;30;100m");
-    // make cursor invisible
-    printf("\033[?25l");
-    return;
-}
-
-void printSlither() {
-    // make cursor invisible
-    printf("\033[?25l");
-    // erase screen
-    printf("\033[2J");
-    // move cursor to line 2
-    printf("\033[2H");
-    // print SLITHER
-    printf("\033[30C%s\n\033[30C%s\n\033[30C%s\n\033[30C%s\n\033[30C%s\n\033[30C%s\n",
-            s1, s2, s3, s4, s5, s6);
-    // reset black font
-    printf("\033[30m");
-    printf("\n");
-    return;
-}
-
-void printSlitherMoving() {
-    for (int n = 1; n <= 186; n++) {
-        // erase screen
-        printf("\033[2J");
-        // move cursor to line 2
-        printf("\033[2H");
-        // print SLITHER
-        printf("\033[30C%.*s\n\033[30C%.*s\n\033[30C%.*s\n\033[30C%.*s\n\033[30C%.*s\n\033[30C%.*s\n",
-                n, s1, n, s2, n, s3, n, s4, n, s5, n, s6);
-        // reset black font
-        printf("\033[30m");
-        usleep(10000);
-    }
-    printf("\n");
-    return;
-}
-
-void printBoard(vector<int> board) {
-    printSlither();
-
-    // set yellow background
-    printf("\033[43m");
-
-    for (int i = 0, idx = 0; i < BOARDSIZE+1; i++, idx += BOARDSIZE) {
-        // move cursor to middle
-        printf("\033[36C ");
-        for(int j = 0; j < BOARDSIZE+1; j++) {
-            printf("+");
-
-            if (j < BOARDSIZE) {
-                printf("--------");
-            }
-        }
-
-        printf(" \n\033[34C");
-
-        if (i < BOARDSIZE) {
-            printf("\033[100m%d \033[43m", 5-i);
-            printf(" ");
-            for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]].c_str());
-            }
-            printf("| \n\033[36C ");
-            for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]].c_str());
-
-            }
-            printf("| \n");
-        }
-    }
-    // reset gray background
-    printf("\033[100m  ");
-    printf("     A         B        C        D        E\n");
-    // move cursor to middle
-    printf("\033[36C");
-    // make cursor visible
-    printf("\033[?25h");
-    return;
-}
-
-void game() {
+void game(Player player) {
     State state;
-    init();
-    printSlitherMoving();
     printBoard(state.get_board());
+
+    // BLACK
+    if (player == 0) {
+
+    }
+    // WHITE
+    else if (player == 1) {
+
+    }
+    // Spectator
+    else {
+
+    }
     
     vector<Action> play;
     char input[10];
@@ -154,7 +66,7 @@ int main(int argc, char **argv) {
     char sendline[MAXLINE], recvline[MAXLINE];
 
 	if (argc != 2) {
-		printf("usage: ./client <IPaddress>");
+		printf("Usage: ./client <IPaddress>");
         return 0;
     }
 
@@ -162,48 +74,88 @@ int main(int argc, char **argv) {
 
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(SERV_PORT+3);
+	servaddr.sin_port = htons(SERV_PORT + 3);
 	inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
 
 	if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) {
-        printf("QQ\n");
+        printf("Connection error\n");
+        return 0;
     }
 
-    printf("Type \"Create Room\" to create a new room\nType \"Enter Room\" to enter a random/the specific room.\n\n");
+    // Connect successfully!
+    read(sockfd, recvline, MAXLINE);
+
+    init();
+    printServ();
+    printServMsg("Welcome to Slither!"); printf("\n");
+    printServMsg("Type \033[93mC\033[30m to create a new room.");
+    printServMsg("Type \033[93mE\033[30m to enter a room.");
+
+    printCli();
+    int flag = 0;
+
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
-        if (strcmp(sendline, "Create Room\n") == 0) {
+        if (flag == 0 && strcmp(sendline, "C\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            printf("\n%s", recvline);
-
-        }
-        else if (strcmp(sendline, "Enter Room\n") == 0) {
-            printf("0\n");
-            printf("socket: %d sendline: %s, strlen: %d\n", sockfd, sendline, strlen(sendline));
-            if (write(sockfd, sendline, strlen(sendline)) < strlen(sendline)) {
-                printf("%d\n", errno);
+            if (strcmp(recvline, "Too many game rooms!\n") == 0) {
+                printServ();
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
             }
-            printf("1\n");
+            else {
+                game(0);
+            }
+        }
+        else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
+            write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
-            printf("2\n");
             recvline[n] = 0;
-            // if (strcmp(recvline, "(There is no room avaliable. Please try again later or create a new room yourself.)\n") != 0) {
-            //     printf("\nType \"random\" to enter a random room\nType (0 - 9) to enter the room\n");
-            //     printf("%s", recvline);
-            // }
-            // else {
-                printf("%s", recvline);
-                fgets(sendline, MAXLINE, stdin);
-                write(sockfd, sendline, strlen(sendline));
-                n = read(sockfd, recvline, MAXLINE);
-                recvline[n] = 0;
-                printf("%s", recvline);
-            // }
+            if (strcmp(recvline, "\n") == 0) {
+                printServ();
+                printServMsg("There is no avaliable room."); printf("\n");
+                printServMsg("Please try again later");
+                printServMsg("or create a new room yourself."); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
+            }
+            else {
+                printServ();
+                printServMsg("Type \033[93m0\033[30m - \033[93m9\033[30m to enter the room by \033[34mID\033[30m");
+                printServMsg("or type \033[93mR\033[30m to enter a random room."); printf("\n");
+                printServMsg("\033[34mRoom ID\033[30m  Players  Viewers");
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 1;
+            }
         }
-        else {
-            printf("3\n");
+        else if (flag == 1 && (isdigit(sendline[0]) || strcmp(sendline, "R\n") == 0)) {
+            write(sockfd, sendline, strlen(sendline));
+            n = read(sockfd, recvline, MAXLINE);
+            recvline[n] = 0;
+            if (strcmp(recvline, "Game Start!\n") == 0) {
+                game(1);
+            }
+            else if (strcmp(recvline, "A gentleman should keep silent while watching.\n") == 0) {
+                game(2);
+            }
+            else {
+                printServ();
+                printServMsg(recvline); printf("\n");
+                printServMsg("Type \033[93mB\033[30m to return.");
+                flag = 2;
+            }
         }
+        else if (strcmp(sendline, "B\n") == 0) {
+            flag = 0;
+            printServ();
+            printServMsg("Welcome to Slither!"); printf("\n");
+            printServMsg("Type \033[93mC\033[30m to create a new room.");
+            printServMsg("Type \033[93mE\033[30m to enter a room.");
+        }
+        printCli();
     }
 
 

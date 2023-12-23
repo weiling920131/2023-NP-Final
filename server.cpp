@@ -135,9 +135,7 @@ int main(int argc, char **argv){
     int                         maxfdp1, n;
 	fd_set		                rset;
 
-    printf("Server running...waiting for connections.\n");
-    for ( ; ; ) { //Deal with socket
-        printf("check\n");
+    for ( ; ; ) { // Deal with socket
         char recvline[MAXLINE], sendline[MAXLINE];
 
 	    FD_ZERO(&rset);
@@ -151,32 +149,32 @@ int main(int argc, char **argv){
         }
         maxfdp1 = Max + 1;
 		select(maxfdp1, &rset, NULL, NULL, NULL);
-        printf("check1\n");
+        // printf("check1\n");
         // Accept client 
         if(FD_ISSET(listenfd, &rset)){
             std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
-            int available = distance(connfd.begin(), it); 
-            printf("check2\n");
+            int available = it - connfd.begin();
             
             if(available >= MAX_CLIENT){ // Too many clients
                 printf("Too many clients!\n");
             }
             else{ //setting
                 connfd[available] = accept(listenfd, (SA *) &cliaddr[available], &clilen[available]);
-                printf("Clientfd %d connected\n", connfd[available]);
+                write(connfd[available], "Connect successfully!\n", 22);
+                printf("To %d: Connect successfully!\n", connfd[available]);
             }
         }
 
         // Deal with client with every cases
         for(int i = 0;i<MAX_CLIENT;i++){
-            printf("check3\n");
+            // printf("check3\n");
 
             if(connfd[i] != -1 && FD_ISSET(connfd[i], &rset)){
-                printf("check4\n");
+                // printf("check4\n");
                 n = read(connfd[i], recvline, MAXLINE);
                 
-                if(n == 0){ // Client close
-                    printf("Clientfd %d closed\n", connfd[i]);
+                if(n <= 0){ // Client close
+                    printf("From %d: Disconnect!\n", connfd[i]);
                     connfd[i] = -1;
                     bzero(&cliaddr[i], sizeof(cliaddr[i]));
                     bzero(&clilen[i], sizeof(clilen[i]));
@@ -185,67 +183,79 @@ int main(int argc, char **argv){
                 recvline[n] = 0;
                 printf("Clientfd %d: %s", connfd[i], recvline);
                 // Deal with client's input
-                if(strcmp(recvline, "Create Room\n") == 0){ // Create a room
+                if(strcmp(recvline, "C\n") == 0){ // Create a room
                     if(cur_room >= MAX_CHATROOM){
                         write(connfd[i], "Too many game rooms!\n", 21);
+                        printf("To %d: Too many game rooms!\n", connfd[i]);
                         continue;
                     }
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
-                            if(players_fd[room_id].size() == 0)
+                            if(players_fd[room_id].size() == 0) {
                                 write(connfd[i], "Waiting for the second player...\n", 33);
+                                printf("To %d: Waiting for the second player...\n", connfd[i]);
+
                                 players_fd[room_id].push_back(connfd[i]);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
                                 cur_room++;
                                 break;
+                            }
                         }
                     }
                 }
 
-                else if(strcmp(recvline, "Enter Room\n") == 0){ // Send room list
+                else if(strcmp(recvline, "E\n") == 0){ // Send room list
                     bzero(sendline, MAXLINE);
                     string room_list = "";
                     for(int room_id = 0;room_id<MAX_CHATROOM;room_id++){
                         if(players_fd[room_id].size() == 0) continue;
-                        room_list += to_string(room_id) + " " + to_string(players_fd[room_id].size()) + " " + to_string(viewers_fd[room_id].size()) + " ";
+                        room_list += "   " + to_string(room_id) + "       " + to_string(players_fd[room_id].size()) + "/2      " + to_string(viewers_fd[room_id].size()) + "/8\n";
                     }
-                    if(room_list.size() == 0) room_list += "(There is no room avaliable. Please try again later or create a new room yourself.)";
-                    room_list += "\n";
-                    // sendline = room_list.c_str();
+                    if (room_list.size() == 0) room_list += "\n";
                     copy(room_list.begin(), room_list.end(), sendline);
-                    sendline[room_list.size()] = 0;
                     write(connfd[i], sendline, strlen(sendline));
+                    printf("To %d: %s", connfd[i], sendline);
                 }
 
-                else if(strcmp(recvline, "random\n") == 0){ // Enter a random room
+                else if(strcmp(recvline, "R\n") == 0){ // Enter a random room
+                    bool enter = false;
                     for(int room_id = 0;room_id<MAX_CHATROOM;room_id++){
                         if(players_fd[room_id].size() == 1){
-                            write(connfd[i], "Game Start!", 11);
+                            write(connfd[i], "Game Start!\n", 12);
+                            printf("To %d: Game Start!\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
+                            enter = true;
                             break;
                         }
+                    }
+                    if(!enter) {
+                        write(connfd[i], "All rooms are full!\n", 20);
+                        printf("To %d: All rooms are full!\n", connfd[i]);
                     }
                 }
 
                 else if(isdigit(recvline[0])){ // Enter the room, client should check if the number is 0-9 and is listed on the screen
                     int room_id = recvline[0] - '0';
                     if(players_fd[room_id].size() == 1){ // Enter a room with one player
-                        write(connfd[i], "Game Start!", 11);
+                        write(connfd[i], "Game Start!\n", 12);
+                        printf("To %d: Game Start!\n", connfd[i]);
                         players_fd[room_id].push_back(connfd[i]);
                     }
                     else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
                         if(viewers_fd[room_id].size() >= MAX_VIEWER){
                             write(connfd[i], "Too many viewers!\n", 18);
+                            printf("To %d: Too many viewers!\n", connfd[i]);
                             continue;
                         }
                         write(connfd[i], "A gentleman should keep silent while watching.\n", 47);
+                        printf("To %d: A gentleman should keep silent while watching.\n", connfd[i]);
                         viewers_fd[room_id].push_back(connfd[i]);
                     }
-                }
-
-                else{
-                    write(connfd[i], "Invalid input!\n", 15);
-                    continue;
+                    else{
+                        write(connfd[i], "Invalid room ID!\n", 17);
+                        printf("To %d: Invalid room ID!\n", connfd[i]);
+                        continue;
+                    }
                 }
             }
         }
