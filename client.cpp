@@ -22,55 +22,78 @@
 
 using namespace std;
 
+int sockfd, n;
 char sendline[MAXLINE], recvline[MAXLINE];
 
 void game(Player player) {
+    printSlither();
+    printServ();
+    printServMsg("Type your name to start the game.");
+    printCli();
+    if (fgets(sendline, MAXLINE, stdin) != NULL) {
+        write(sockfd, sendline, strlen(sendline));
+        n = read(sockfd, recvline, MAXLINE);
+        recvline[n] = 0;
+    }
+    else {
+        return;
+    }
     State state;
     printBoard(state.get_board());
-    printf("%s", recvline);
 
-    // BLACK
-    if (player == 0) {
-
-    }
-    // WHITE
-    else if (player == 1) {
-
-    }
-    // Viewer
-    else {
-
-    }
-    
-    vector<Action> play;
-    char input[10];
     while (1) {
-        // erase previous input
-        printf("\033[26;37H\033[0K");
-        fgets(input, sizeof(input), stdin);
-        // move cursor to middle
-        printf("\033[27;37H\033[0K");
+        // BLACK
+        if (player == 0) {
+            if (strcmp(recvline, "Your turn!\n") == 0) {
+                printBoardPlayers(true);
+            }
+            else if (strcmp(recvline, "Waiting for the second player...\n") == 0) {
 
-        play = state.string_to_action(input);
-        if (play.size() != 3) {
-            printf("illegal move!\n");
-            continue;
+            }
+            else {
+                printBoardPlayers(false);
+            }
         }
+        // WHITE
+        else if (player == 1) {
+
+        }
+        // Viewer
         else {
-            printf("%d %d %d\n", play[0], play[1], play[2]);
+
         }
-        // printBoard(state.get_board());
     }
+    // vector<Action> play;
+    // char input[10];
+    // while (1) {
+    //     // erase previous input
+    //     printf("\033[26;37H\033[0K");
+    //     fgets(input, sizeof(input), stdin);
+    //     // move cursor to middle
+    //     printf("\033[27;37H\033[0K");
+
+    //     play = state.string_to_action(input);
+    //     if (play.size() != 3) {
+    //         printf("illegal move!\n");
+    //         continue;
+    //     }
+    //     else {
+    //         printf("%d %d %d\n", play[0], play[1], play[2]);
+    //     }
+    //     // printBoard(state.get_board());
+    // }
 }
 
 int main(int argc, char **argv) {
-    int					sockfd, n;
 	struct sockaddr_in	servaddr;
 
 	if (argc != 2) {
 		printf("Usage: ./client <IPaddress>");
         return 0;
     }
+
+    init();
+    loading();
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -80,19 +103,20 @@ int main(int argc, char **argv) {
 	inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
 
 	if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) {
-        printf("Connection error\n");
+        printf("\033[1A\033[0K\033[50CConnection error\n");
         return 0;
     }
 
     // Connect successfully!
     read(sockfd, recvline, MAXLINE);
 
-    init();
+    printSlither();
     printServ();
     printServMsg("Welcome to Slither!"); printf("\n");
     printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room.");
 
     printCli();
+    // 0: C or E; 1: 0-9 or R; 2: deadend;
     int flag = 0;
 
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
@@ -100,21 +124,22 @@ int main(int argc, char **argv) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            if (strcmp(recvline, "Too many game rooms!\n") == 0) {
+            if (strcmp(recvline, "OK\n") == 0) {
+                game(0);
+                return 0;
+            }
+            else {
                 printServ();
                 printServMsg(recvline); printf("\n");
                 printServMsg("Type \033[32mB\033[30m to return.");
                 flag = 2;
-            }
-            else {
-                game(0);
             }
         }
         else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            if (strcmp(recvline, "\n") == 0) {
+            if (strcmp(recvline, "Empty\n") == 0) {
                 printServ();
                 printServMsg("There is no avaliable room."); printf("\n");
                 printServMsg("Please try again later\nor create a new room yourself."); printf("\n");
@@ -136,11 +161,13 @@ int main(int argc, char **argv) {
             write(sockfd, sendline, strlen(sendline));
             n = read(sockfd, recvline, MAXLINE);
             recvline[n] = 0;
-            if (strcmp(recvline, "Game Start!\n") == 0) {
+            if (strcmp(recvline, "Player\n") == 0) {
                 game(1);
+                return 0;
             }
-            else if (strcmp(recvline, "A gentleman should keep silent while watching.\n") == 0) {
+            else if (strcmp(recvline, "Viewer\n") == 0) {
                 game(2);
+                return 0;
             }
             else {
                 printSlither();

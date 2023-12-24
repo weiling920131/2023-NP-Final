@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <unistd.h>
+#include <vector>
 #define BOARDSIZE 5
 using namespace std;
 
@@ -265,9 +266,53 @@ void printBoard(vector<int> board) {
     // reset gray background
     printf("\033[100m  ");
     printf("     A        B        C        D        E\n");
+    return;
+}
+
+void printBoardPlayers(bool isYourTurn) {
+    if (isYourTurn) {
+        printf("\033[23H");
+        for (const auto c: playing_cat) {
+            printf("\033[10C%s\n", c.c_str());
+        }
+
+        printf("\033[8H");
+        for (const auto c: sleeping_cat) {
+            printf("\033[91C%s\n", c.c_str());
+        }
+    }
+    else {
+        printf("\033[25H");
+        for (const auto c: sleeping_cat) {
+            printf("\033[9C%s\n", c.c_str());
+        }
+
+        printf("\033[6H");
+        for (const auto c: playing_cat) {
+            printf("\033[90C%s\n", c.c_str());
+        }
+    }
     // move cursor to middle
-    printf("\033[36C");
+    printf("\033[27;37H");
     // make cursor visible
     printf("\033[?25h");
+    return;
+}
+
+void printBoardPlayer() {
+    printf("\033[25H");
+    for (const auto c: sleeping_cat) {
+        printf("\033[9C%s\n", c.c_str());
+    }
+    // move cursor to middle
+    printf("\033[27;37H");
+    return;
+}
+
+void loading() {
+    for (const auto c: loading_cat) {
+        printf("\033[45C%s\n", c.c_str());
+    }
+    printf("\033[55CLoading...\n");
     return;
 }

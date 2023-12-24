@@ -1,3 +1,9 @@
+/*
+    只有一個人在server裡時 他打C進thread後其他人就連不進server了
+    thread的select會卡住新進的人
+    進遊戲後還是會被main的select抓到input!!
+    MAX_VIEWER是10還是8?
+*/
 #include    "slither.h"
 #include    <sys/wait.h>
 #include    <sys/types.h>
@@ -72,12 +78,15 @@ void *game_room(void* room_id_void){
                         write(p, "Waiting for the second player...\n", 33);
                         printf("To %d: Waiting for the second player...\n", p);
                     }
-                    else{
+                    else if(players_fd[room_id].size() == 2) {   // second player
                         write(p, "Game Start!\n", 12);
                         printf("To %d: Game Start!\n", p);
-                        write(players_fd[room_id][0], "Is your turn\n", 12);
+                        write(players_fd[room_id][0], "Your turn!\n", 11);
                     }
-
+                    else {  // viewer
+                        write(p, "A gentleman should keep silent while watching.\n", 47);
+                        printf("To %d: A gentleman should keep silent while watching.\n", p);
+                    }
                 }
                 else{
                     if(n = read(p, recvline, MAXLINE) > 0) {
@@ -185,12 +194,12 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0) {
-                                write(connfd[i], "Waiting for the second player...\n", 33);
-                                // printf("To %d: Waiting for the second player...\n", connfd[i]);
-
                                 players_fd[room_id].push_back(connfd[i]);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
                                 cur_room++;
+
+                                write(connfd[i], "OK\n", 3);
+                                printf("To %d: OK\n", connfd[i]);
                                 break;
                             }
                         }
@@ -204,7 +213,7 @@ int main(int argc, char **argv){
                         if(players_fd[room_id].size() == 0) continue;
                         room_list += "   " + to_string(room_id) + "       " + to_string(players_fd[room_id].size()) + "/2      " + to_string(viewers_fd[room_id].size()) + "/8\n";
                     }
-                    if (room_list.size() == 0) room_list += "\n";
+                    if (room_list.size() == 0) room_list = "Empty\n";
                     copy(room_list.begin(), room_list.end(), sendline);
                     write(connfd[i], sendline, strlen(sendline));
                     printf("To %d: %s", connfd[i], sendline);
@@ -214,8 +223,8 @@ int main(int argc, char **argv){
                     bool enter = false;
                     for(int room_id = 0;room_id<MAX_CHATROOM;room_id++){
                         if(players_fd[room_id].size() == 1){
-                            write(connfd[i], "Game Start!\n", 12);
-                            printf("To %d: Game Start!\n", connfd[i]);
+                            write(connfd[i], "Player\n", 7);
+                            printf("To %d: Player\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
                             enter = true;
                             break;
@@ -230,8 +239,8 @@ int main(int argc, char **argv){
                 else if(isdigit(recvline[0])){ // Enter the room, client should check if the number is 0-9 and is listed on the screen
                     int room_id = recvline[0] - '0';
                     if(players_fd[room_id].size() == 1){ // Enter a room with one player
-                        write(connfd[i], "Game Start!\n", 12);
-                        printf("To %d: Game Start!\n", connfd[i]);
+                        write(connfd[i], "Player\n", 7);
+                        printf("To %d: Player\n", connfd[i]);
                         players_fd[room_id].push_back(connfd[i]);
                     }
                     else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
@@ -240,8 +249,8 @@ int main(int argc, char **argv){
                             printf("To %d: Too many viewers!\n", connfd[i]);
                             continue;
                         }
-                        write(connfd[i], "A gentleman should keep silent while watching.\n", 47);
-                        printf("To %d: A gentleman should keep silent while watching.\n", connfd[i]);
+                        write(connfd[i], "Viewer\n", 7);
+                        printf("To %d: Viewer\n", connfd[i]);
                         viewers_fd[room_id].push_back(connfd[i]);
                     }
                     else{
