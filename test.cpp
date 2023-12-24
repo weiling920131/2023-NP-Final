@@ -11,7 +11,7 @@ int main() {
     char sendline[4096];
     init();
     printBoard(emptyBoard);
-    printBoardPlayers(false);
+    printBoardPlayer();
 
     while(fgets(sendline, 4096, stdin)) {
 
