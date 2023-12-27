@@ -54,13 +54,23 @@ string sleeping_cat[] = {
     "'---''(_/--'  `-'\\_)"
 };
 
-string playing_cat[] = {
+string playing_cat_black[] = {
 "              _ |\\_",
 "              \\` ..\\",
 "         __,.-\" =__Y=",
 "       .\"        )",
-" _    /   ,    \\/\\_  _",
-"((____|    )_-\\ \\_-`(_)",
+" _    /   ,    \\/\\_   ",
+"((____|    )_-\\ \\_-`\033[40m   \033[100m",
+"`-----'`-----` `--`",
+};
+
+string playing_cat_white[] = {
+"              _ |\\_",
+"              \\` ..\\",
+"         __,.-\" =__Y=",
+"       .\"        )",
+" _    /   ,    \\/\\_   ",
+"((____|    )_-\\ \\_-`\033[47m   \033[100m",
 "`-----'`-----` `--`",
 };
 
@@ -269,17 +279,27 @@ void printBoard(vector<int> board) {
     return;
 }
 
-void printBoardPlayers(bool isYourTurn) {
+void printBoardPlayers(bool isYourTurn, int p) {
     if (isYourTurn) {
-        printf("\033[23H");
-        for (const auto c: playing_cat) {
-            printf("\033[10C%s\n", c.c_str());
+        if (p == 0) {
+            printf("\033[23H");
+            for (const auto c: playing_cat_black) {
+                printf("\033[10C%s\n", c.c_str());
+            }
+        }
+        else if (p == 1) {
+            printf("\033[23H");
+            for (const auto c: playing_cat_white) {
+                printf("\033[10C%s\n", c.c_str());
+            }
         }
 
         printf("\033[8H");
         for (const auto c: sleeping_cat) {
             printf("\033[91C%s\n", c.c_str());
         }
+        // make cursor visible
+        printf("\033[?25h");
     }
     else {
         printf("\033[25H");
@@ -287,15 +307,23 @@ void printBoardPlayers(bool isYourTurn) {
             printf("\033[9C%s\n", c.c_str());
         }
 
-        printf("\033[6H");
-        for (const auto c: playing_cat) {
-            printf("\033[90C%s\n", c.c_str());
+        if (p == 0) {
+            printf("\033[6H");
+            for (const auto c: playing_cat_white) {
+                printf("\033[90C%s\n", c.c_str());
+            }
         }
+        else if (p == 1) {
+            printf("\033[6H");
+            for (const auto c: playing_cat_black) {
+                printf("\033[90C%s\n", c.c_str());
+            }
+        }
+        // make cursor invisible
+        printf("\033[?25l");
     }
     // move cursor to middle
-    printf("\033[27;37H");
-    // make cursor visible
-    printf("\033[?25h");
+    printf("\033[27;40H\033[0K");
     return;
 }
 
@@ -305,11 +333,13 @@ void printBoardPlayer() {
         printf("\033[9C%s\n", c.c_str());
     }
     // move cursor to middle
-    printf("\033[27;37H");
+    printf("\033[27;40H");
+    // make cursor invisible
+    printf("\033[?25l");
     return;
 }
 
-void loading() {
+void printLoading() {
     for (const auto c: loading_cat) {
         printf("\033[45C%s\n", c.c_str());
     }

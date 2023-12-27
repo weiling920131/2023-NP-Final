@@ -30,14 +30,30 @@ void game(Player player) {
     printServ();
     printServMsg("Type your name to start the game.");
     printCli();
-    if (fgets(sendline, MAXLINE, stdin) != NULL) {
+    bool inRoom = false;
+    while (fgets(sendline, MAXLINE, stdin) != NULL) {
         write(sockfd, sendline, strlen(sendline));
-        n = read(sockfd, recvline, MAXLINE);
+        printLoading();
+        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            printf("\033[1A\033[0K\033[50CConnection error\n");
+            return;
+        }
         recvline[n] = 0;
+
+        if (strcmp(recvline, "duplicate\n") == 0) {
+            printSlither();
+            printServ();
+            printServMsg("Type your name to start the game.");
+            printServMsg("Duplicate! Please try another name.");
+            printCli();
+        }
+        else {
+            inRoom = true;
+            break;
+        }
     }
-    else {
-        return;
-    }
+    if (!inRoom) return;
+
     State state;
     printBoard(state.get_board());
 
@@ -45,24 +61,57 @@ void game(Player player) {
         // BLACK
         if (player == 0) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
-                printBoardPlayers(true);
+                printBoardPlayers(true, player);
+                while (fgets(sendline, MAXLINE, stdin) != NULL) {
+
+                }
             }
             else if (strcmp(recvline, "Waiting for the second player...\n") == 0) {
-
+                printBoardPlayer();
+                printf("%s", recvline);
+                // Your turn!
+                if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+                    printLoading();
+                    printf("\033[1A\033[0K\033[50CConnection error\n");
+                    return;
+                }
+                recvline[n] = 0;
+                continue;
             }
             else {
-                printBoardPlayers(false);
+                printBoardPlayers(false, player);
             }
         }
         // WHITE
         else if (player == 1) {
-
+            if (strcmp(recvline, "Your turn!\n") == 0) {
+                printBoardPlayers(true, player);
+            }
+            else {
+                printBoardPlayers(false, player);
+            }
         }
         // Viewer
         else {
 
         }
-    }
+        // update board
+        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            printLoading();
+            printf("\033[1A\033[0K\033[50CConnection error\n");
+            return;
+        }
+        recvline[n] = 0;
+        // state.set_board();
+        // printBoard();
+        // next turn
+        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            printLoading();
+            printf("\033[1A\033[0K\033[50CConnection error\n");
+            return;
+        }
+        recvline[n] = 0;
+}
     // vector<Action> play;
     // char input[10];
     // while (1) {
@@ -93,7 +142,7 @@ int main(int argc, char **argv) {
     }
 
     init();
-    loading();
+    printLoading();
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -108,7 +157,10 @@ int main(int argc, char **argv) {
     }
 
     // Connect successfully!
-    read(sockfd, recvline, MAXLINE);
+    if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+        printf("\033[1A\033[0K\033[50CConnection error\n");
+        return 0;
+    }
 
     printSlither();
     printServ();
@@ -122,11 +174,15 @@ int main(int argc, char **argv) {
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         if (flag == 0 && strcmp(sendline, "C\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
-            n = read(sockfd, recvline, MAXLINE);
+            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+                printLoading();
+                printf("\033[1A\033[0K\033[50CConnection error\n");
+                return 0;
+            }
             recvline[n] = 0;
             if (strcmp(recvline, "OK\n") == 0) {
                 game(0);
-                return 0;
+                if (n <= 0) return 0;
             }
             else {
                 printServ();
@@ -137,7 +193,11 @@ int main(int argc, char **argv) {
         }
         else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
-            n = read(sockfd, recvline, MAXLINE);
+            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+                printLoading();
+                printf("\033[1A\033[0K\033[50CConnection error\n");
+                return 0;
+            }
             recvline[n] = 0;
             if (strcmp(recvline, "Empty\n") == 0) {
                 printServ();
@@ -159,15 +219,19 @@ int main(int argc, char **argv) {
         }
         else if (flag == 1 && ((isdigit(sendline[0]) && sendline[1] == '\n') || strcmp(sendline, "R\n") == 0)) {
             write(sockfd, sendline, strlen(sendline));
-            n = read(sockfd, recvline, MAXLINE);
+            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+                printLoading();
+                printf("\033[1A\033[0K\033[50CConnection error\n");
+                return 0;
+            }
             recvline[n] = 0;
             if (strcmp(recvline, "Player\n") == 0) {
                 game(1);
-                return 0;
+                if (n <= 0) return 0;
             }
             else if (strcmp(recvline, "Viewer\n") == 0) {
                 game(2);
-                return 0;
+                if (n <= 0) return 0;
             }
             else {
                 printSlither();

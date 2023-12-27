@@ -61,7 +61,7 @@ void *game_room(void* room_id_void){
             Max = max(Max, v);
         }
         maxfdp1 = Max + 1;
-        select(maxfdp1, &rset, NULL, NULL, myTimeval);
+        select(maxfdp1, &rset, NULL, NULL, &myTimeval);
 
         for(int i = 0;i<players_fd[room_id].size();i++){
             auto p = players_fd[room_id][i];
@@ -231,7 +231,7 @@ int main(int argc, char **argv){
                             printf("To %d: Player\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
                             enter = true;
-                            connfd = -1;
+                            connfd[i] = -1;
                             break;
                         }
                     }
