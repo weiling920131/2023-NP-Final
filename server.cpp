@@ -63,45 +63,82 @@ void *game_room(void* room_id_void){
         maxfdp1 = Max + 1;
         select(maxfdp1, &rset, NULL, NULL, &myTimeval);
 
-        for(int i = 0;i<players_fd[room_id].size();i++){
-            auto p = players_fd[room_id][i];
+        while(true){
+            for(int i = 0;i<players_fd[room_id].size();i++){
+                auto p = players_fd[room_id][i];
 
-            if(FD_ISSET(p, &rset)){
-                if(player_id.find(p) == player_id.end()){ // if the player is new
-                    if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
-                        printf("From %d: Disconnect!\n", p);
-                        players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
-                        player_id.erase(p);
-                        cur_room--;
-                        continue;
-                    }
+                if(FD_ISSET(p, &rset)){
+                    if(player_id.find(p) == player_id.end()){ // if the player is new
+                        if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                            printf("From %d: Disconnect!\n", p);
+                            players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
+                            cur_room--;
+                            pthread_exit(NULL);
+                        }
 
-                    recvline[n-1] = 0;
-                    player_id[p] = recvline;
-                    if(players_fd[room_id].size() == 1){ // if the player is the first player
-                        write(p, "Waiting for the second player...\n", 33);
-                        printf("To %d: Waiting for the second player...\n", p);
+                        recvline[n-1] = 0;
+                        player_id[p] = recvline;
+                        if(i == 0){ // if the player is the first player
+                            write(p, "Waiting for the second player...\n", 33);
+                            printf("To %d: Waiting for the second player...\n", p);
+                        }
+                        else{   // second player
+                            write(p, "Game Start!\n", 12);
+                            printf("To %d: Game Start!\n", p);
+                            write(players_fd[room_id][0], "Your turn!\n", 11);
+                        }
                     }
-                    else if(players_fd[room_id].size() == 2) {   // second player
-                        write(p, "Game Start!\n", 12);
-                        printf("To %d: Game Start!\n", p);
-                        write(players_fd[room_id][0], "Your turn!\n", 11);
+                    else{
+                        if(player_id.size() < players_fd[room_id].size() + viewers_fd[room_id].size()){
+                            if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                                printf("From %d: Disconnect!\n", p);
+                                players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
+                                continue;
+                            }
+                            recvline[n-1] = 0;
+                            player_id[p] = recvline;
+                        }
+                        else if(n = read(p, recvline, MAXLINE) > 0) {
+                            recvline[n-1] = 0;
+                        }
+                        else{
+                            printf("From %d: Disconnect!\n", p);
+                            players_fd[room_id].clear();
+                            cur_room--;
+                            // TODO : send message to the other player and determine who wins
+                            pthread_exit(NULL);
+                        }
                     }
-                    else {  // viewer
+                }
+            }
+
+
+
+            for(int i = 0;i<viewers_fd[room_id].size();i++){
+                auto p = viewers_fd[room_id][i];
+
+                if(FD_ISSET(p, &rset)){
+                    if(player_id.find(p) == player_id.end()){ // if the player is new
+                        if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                            printf("From %d: Disconnect!\n", p);
+                            viewers_fd[room_id].erase(std::find(viewers_fd[room_id].begin(), viewers_fd[room_id].end(), p));
+                            player_id.erase(p);
+                            continue;
+                        }
+
+                        recvline[n-1] = 0;
+                        player_id[p] = recvline;
                         write(p, "A gentleman should keep silent while watching.\n", 47);
                         printf("To %d: A gentleman should keep silent while watching.\n", p);
                     }
-                }
-                else{
-                    if(n = read(p, recvline, MAXLINE) > 0) {
-                        recvline[n-1] = 0;
-                    }
                     else{
-                        printf("From %d: Disconnect!\n", p);
-                        players_fd[room_id].clear();
-                        cur_room--;
-                        // TODO : send message to the other player and determine who wins
-                        pthread_exit(NULL);
+                        if(n = read(p, recvline, MAXLINE) > 0) {
+                            recvline[n-1] = 0;
+                        }
+                        else{
+                            printf("From %d: Disconnect!\n", p);
+                            viewers_fd[room_id].erase(std::find(viewers_fd[room_id].begin(), viewers_fd[room_id].end(), p));
+                        }
                     }
                 }
             }
