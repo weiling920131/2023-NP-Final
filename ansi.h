@@ -340,6 +340,7 @@ void printBoardPlayer() {
 }
 
 void printLoading() {
+    printSlither();
     for (const auto c: loading_cat) {
         printf("\033[45C%s\n", c.c_str());
     }

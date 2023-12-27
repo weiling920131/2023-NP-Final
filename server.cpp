@@ -63,17 +63,33 @@ void *game_room(void* room_id_void){
         maxfdp1 = Max + 1;
         select(maxfdp1, &rset, NULL, NULL, &myTimeval);
 
-        while(true){
+        // while(true){
             for(int i = 0;i<players_fd[room_id].size();i++){
                 auto p = players_fd[room_id][i];
 
                 if(FD_ISSET(p, &rset)){
+                    printf("i: %d p: %d\n", i, p);
                     if(player_id.find(p) == player_id.end()){ // if the player is new
                         if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
-                            printf("From %d: Disconnect!\n", p);
-                            players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
-                            cur_room--;
-                            pthread_exit(NULL);
+                            if (i == 0) {
+                                printf("From %d: Disconnect!\n", p);
+                                players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
+                                for (auto& x: players_fd[room_id]) {
+                                    for (int j=0; j<MAX_CLIENT; j++) {
+                                        if (connfd[j] == -1) {
+                                            connfd[j] = x;
+                                            players_fd[room_id].clear();
+                                            break;
+                                        }
+                                    }
+                                }
+                                cur_room--;
+                                pthread_exit(NULL);
+                            }
+                            else {
+                                printf("From %d: Disconnect!\n", p);
+                                players_fd[room_id].erase(std::find(players_fd[room_id].begin(), players_fd[room_id].end(), p));
+                            }
                         }
 
                         recvline[n-1] = 0;
@@ -142,7 +158,7 @@ void *game_room(void* room_id_void){
                     }
                 }
             }
-        }
+        // }
 
     }
 
