@@ -40,11 +40,11 @@ void game(Player player) {
         }
         recvline[n] = 0;
 
-        if (strcmp(recvline, "duplicate\n") == 0) {
+        if (strcmp(recvline, "Duplicate\n") == 0) {
             printSlither();
             printServ();
             printServMsg("Type your name to start the game.");
-            printServMsg("Duplicate! Please try another name.");
+            printServMsg("It's already used! Please try another name.");
             printCli();
         }
         else {
@@ -95,6 +95,7 @@ void game(Player player) {
         else {
 
         }
+
         // update board
         if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
@@ -111,7 +112,7 @@ void game(Player player) {
             return;
         }
         recvline[n] = 0;
-}
+    }
     // vector<Action> play;
     // char input[10];
     // while (1) {
