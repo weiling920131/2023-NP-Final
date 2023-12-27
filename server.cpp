@@ -35,8 +35,12 @@ int cur_room = 0;
 vector<pthread_t> my_thread(MAX_CHATROOM);
 vector<vector<int>> players_fd(MAX_CHATROOM);
 vector<vector<int>> viewers_fd(MAX_CHATROOM);
+vector<int>                 connfd(MAX_CLIENT, -1);
 
 void *game_room(void* room_id_void){
+    struct timeval myTimeval;
+    myTimeval.tv_sec = 5;  
+    myTimeval.tv_usec = 0; 
     int                room_id = *(int*)room_id_void, n;
     unordered_map<int, string>     player_id;
     char                sendline[MAXLINE], recvline[MAXLINE];
@@ -57,7 +61,7 @@ void *game_room(void* room_id_void){
             Max = max(Max, v);
         }
         maxfdp1 = Max + 1;
-        select(maxfdp1, &rset, NULL, NULL, NULL);
+        select(maxfdp1, &rset, NULL, NULL, myTimeval);
 
         for(int i = 0;i<players_fd[room_id].size();i++){
             auto p = players_fd[room_id][i];
@@ -131,7 +135,6 @@ int main(int argc, char **argv){
 	listen(listenfd, LISTENQ);
 
     // Signal(SIGCHLD, sig_chld);
-    vector<int>                 connfd(MAX_CLIENT, -1);
     vector<struct sockaddr_in>	cliaddr(MAX_CLIENT);
     vector<socklen_t>			clilen(MAX_CLIENT, sizeof(cliaddr[0]));
     int                         maxfdp1, n;
@@ -200,6 +203,7 @@ int main(int argc, char **argv){
 
                                 write(connfd[i], "OK\n", 3);
                                 printf("To %d: OK\n", connfd[i]);
+                                connfd[i] = -1;
                                 break;
                             }
                         }
@@ -227,6 +231,7 @@ int main(int argc, char **argv){
                             printf("To %d: Player\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
                             enter = true;
+                            connfd = -1;
                             break;
                         }
                     }
@@ -242,6 +247,7 @@ int main(int argc, char **argv){
                         write(connfd[i], "Player\n", 7);
                         printf("To %d: Player\n", connfd[i]);
                         players_fd[room_id].push_back(connfd[i]);
+                        connfd[i] = -1;
                     }
                     else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
                         if(viewers_fd[room_id].size() >= MAX_VIEWER){
@@ -252,6 +258,7 @@ int main(int argc, char **argv){
                         write(connfd[i], "Viewer\n", 7);
                         printf("To %d: Viewer\n", connfd[i]);
                         viewers_fd[room_id].push_back(connfd[i]);
+                        connfd[i] = -1;
                     }
                     else{
                         write(connfd[i], "Invalid room ID!\n", 17);
