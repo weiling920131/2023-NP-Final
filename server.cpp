@@ -177,7 +177,7 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0) {
-                                // write(connfd[i], "Waiting for the second player...\n", 33);
+                                write(connfd[i], "Waiting for the second player...\n", 33);
                                 // printf("To %d: Waiting for the second player...\n", connfd[i]);
 
                                 players_fd[room_id].push_back(connfd[i]);
