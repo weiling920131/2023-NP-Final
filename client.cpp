@@ -44,7 +44,7 @@ void game(Player player) {
             printSlither();
             printServ();
             printServMsg("Type your name to start the game.");
-            printServMsg("It's already used! Please try another name.");
+            printServMsg("It's already used!\nPlease try another name.");
             printCli();
         }
         else {
@@ -58,12 +58,18 @@ void game(Player player) {
     printBoard(state.get_board());
 
     while (1) {
+        vector<Action> play;
         // BLACK
         if (player == 0) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
                 printBoardPlayers(true, player);
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-
+                    play = state.string_to_action(sendline);
+                    if (play.size() != 3) {
+                        printf("illegal move!\n");
+                        printBoardPlayers(true, player);
+                        continue;
+                    }
                 }
             }
             else if (strcmp(recvline, "Waiting for the second player...\n") == 0) {

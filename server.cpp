@@ -249,7 +249,7 @@ int main(int argc, char **argv){
 
             if(connfd[i] != -1 && FD_ISSET(connfd[i], &rset)){
                 
-                if(n = read(connfd[i], recvline, MAXLINE) <= 0){ // Client close
+                if((n = read(connfd[i], recvline, MAXLINE)) <= 0){ // Client close
                     printf("From %d: Disconnect!\n", connfd[i]);
                     connfd[i] = -1;
                     bzero(&cliaddr[i], sizeof(cliaddr[i]));
