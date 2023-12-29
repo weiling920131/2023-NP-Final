@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <unistd.h>
+#include <vector>
 #define BOARDSIZE 5
 using namespace std;
 
@@ -46,20 +47,30 @@ string cli_cat[] = {
     "    (_("
 };
 
-string sleep_cat[] = {
+string sleeping_cat[] = {
     "  |\\      _,,,---,,_",
     "  /,`.-'`'    -.  ;-;;,_",
     " |,4-  ) )-,_..;\\ (  `'-'",
     "'---''(_/--'  `-'\\_)"
 };
 
-string playing_cat[] = {
+string playing_cat_black[] = {
 "              _ |\\_",
 "              \\` ..\\",
 "         __,.-\" =__Y=",
 "       .\"        )",
-" _    /   ,    \\/\\_  _",
-"((____|    )_-\\ \\_-`(_)",
+" _    /   ,    \\/\\_   ",
+"((____|    )_-\\ \\_-`\033[40m   \033[100m",
+"`-----'`-----` `--`",
+};
+
+string playing_cat_white[] = {
+"              _ |\\_",
+"              \\` ..\\",
+"         __,.-\" =__Y=",
+"       .\"        )",
+" _    /   ,    \\/\\_   ",
+"((____|    )_-\\ \\_-`\033[47m   \033[100m",
 "`-----'`-----` `--`",
 };
 
@@ -265,9 +276,74 @@ void printBoard(vector<int> board) {
     // reset gray background
     printf("\033[100m  ");
     printf("     A        B        C        D        E\n");
+    return;
+}
+
+void printBoardPlayers(bool isYourTurn, int p) {
+    if (isYourTurn) {
+        if (p == 0) {
+            printf("\033[23H");
+            for (const auto c: playing_cat_black) {
+                printf("\033[10C%s\n", c.c_str());
+            }
+        }
+        else if (p == 1) {
+            printf("\033[23H");
+            for (const auto c: playing_cat_white) {
+                printf("\033[10C%s\n", c.c_str());
+            }
+        }
+
+        printf("\033[8H");
+        for (const auto c: sleeping_cat) {
+            printf("\033[91C%s\n", c.c_str());
+        }
+        // make cursor visible
+        printf("\033[?25h");
+    }
+    else {
+        printf("\033[25H");
+        for (const auto c: sleeping_cat) {
+            printf("\033[9C%s\n", c.c_str());
+        }
+
+        if (p == 0) {
+            printf("\033[6H");
+            for (const auto c: playing_cat_white) {
+                printf("\033[90C%s\n", c.c_str());
+            }
+        }
+        else if (p == 1) {
+            printf("\033[6H");
+            for (const auto c: playing_cat_black) {
+                printf("\033[90C%s\n", c.c_str());
+            }
+        }
+        // make cursor invisible
+        printf("\033[?25l");
+    }
     // move cursor to middle
-    printf("\033[36C");
-    // make cursor visible
-    printf("\033[?25h");
+    printf("\033[27;40H\033[0K");
+    return;
+}
+
+void printBoardPlayer() {
+    printf("\033[25H");
+    for (const auto c: sleeping_cat) {
+        printf("\033[9C%s\n", c.c_str());
+    }
+    // move cursor to middle
+    printf("\033[27;40H");
+    // make cursor invisible
+    printf("\033[?25l");
+    return;
+}
+
+void printLoading() {
+    printSlither();
+    for (const auto c: loading_cat) {
+        printf("\033[45C%s\n", c.c_str());
+    }
+    printf("\033[55CLoading...\n");
     return;
 }
