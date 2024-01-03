@@ -51,6 +51,7 @@ void *game_room(void* room_id_void){
     int                 maxfdp1;
 	fd_set		        rset;
 
+    // Call entire game
     State game;
 
     for( ; ; ){
@@ -120,6 +121,20 @@ void *game_room(void* room_id_void){
                 else{
                     if(n = read(p, recvline, MAXLINE) > 0) {
                         recvline[n-1] = 0;
+                        int a1, a2, a3;
+                        sscanf(recvline, "%d %d %d", &a1, &a2, &a3);
+                        if(game.legal_actions.find(a1) != game.legal_actions.end()) {
+                            game.apply_action(a1);
+                            if(game.legal_actions.find(a2) != game.legal_actions.end()){
+                                game.apply_action(a2);
+                                if(game.legal_actions.find(a3) != game.legal_actions.end()){
+                                    game.apply_action(a3);
+                                    // send board info to others
+                                }
+                            }
+                        }
+                        // send "resend" to the player
+
                     }
                     else{
                         printf("From %d: Disconnect!\n", p);
@@ -137,7 +152,7 @@ void *game_room(void* room_id_void){
             }
         }
 
-
+        
 
         for(int i = 0;i<viewers_fd[room_id].size();i++){
             auto p = viewers_fd[room_id][i];
