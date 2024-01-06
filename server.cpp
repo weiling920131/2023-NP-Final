@@ -120,12 +120,14 @@ void *game_room(void* room_id_void){
                         // write()
 
                         write(players_fd[room_id][0], "Your turn!\n", 11);
+                        printf("To %d: Your turn!\n", players_fd[room_id][0]);
 
                     }
                 }
                 else{
                     if(n = read(p, recvline, MAXLINE) > 0) {
                         recvline[n-1] = 0;
+                        printf("From %d: %s\n", p, recvline);
                         int a1, a2, a3;
                         sscanf(recvline, "%d %d %d", &a1, &a2, &a3);
                         vector<int> actions = game.legal_actions();
@@ -151,8 +153,13 @@ void *game_room(void* room_id_void){
                                     sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][game.current_player()]].c_str());
                                     sendline[strlen(sendline)] = 0;
                                     write(players_fd[room_id][game.current_player()], "Your turn!\n", 11);
+                                    printf("To %d: Your turn!\n", players_fd[room_id][game.current_player()]);
                                     write(players_fd[room_id][1 - game.current_player()], sendline, strlen(sendline));
-                                    for(auto& x: viewers_fd[room_id]) write(x, sendline, strlen(sendline));
+                                    printf("To %d: %s", players_fd[room_id][1 - game.current_player()], sendline);
+                                    for(auto& x: viewers_fd[room_id]) {
+                                        write(x, sendline, strlen(sendline));
+                                        printf("To %d: %s", x, sendline);
+                                    }
                                     // end
                                     continue;
                                 }
@@ -160,6 +167,7 @@ void *game_room(void* room_id_void){
                         }
                         // send "resend" to the player
                         write(p, "illegal\n", 8);
+                        printf("To %d: illegal\n", p);
 
                     }
                     else{
