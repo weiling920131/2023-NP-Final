@@ -244,7 +244,7 @@ void printCli() {
     return;
 }
 
-void printBoard(vector<int> board) {
+void printBoard(string board) {
     printSlither();
 
     // set yellow background
@@ -264,11 +264,11 @@ void printBoard(vector<int> board) {
             printf("\033[100m%d \033[43m", BOARDSIZE-i);
             printf(" ");
             for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]].c_str());
+                printf("|  %s  ", piece[board[idx+k] - '0'].c_str());
             }
             printf("| \n\033[36C ");
             for (int k = 0; k < BOARDSIZE; k++) {
-                printf("|  %s  ", piece[board[idx+k]].c_str());
+                printf("|  %s  ", piece[board[idx+k] - '0'].c_str());
             }
             printf("| \n");
         }

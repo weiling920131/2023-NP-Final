@@ -54,22 +54,69 @@ void game(Player player) {
     }
     if (!inRoom) return;
 
-    State state;
-    printBoard(state.get_board());
+    State pre, cur;
+    printBoard(cur.get_board());
 
     while (1) {
-        vector<Action> play;
+        vector<Action> toMove, toPlace;
         // BLACK
         if (player == 0) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
                 printBoardPlayers(true, player);
+                // move
+                bool reset = false;
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-                    play = state.string_to_action(sendline);
-                    if (play.size() != 3) {
-                        printf("illegal move!\n");
+                    toMove = state.string_to_action(sendline);
+                    if (toMove.size() != 2) {
+                        printf("illegal action!\n");
                         printBoardPlayers(true, player);
                         continue;
                     }
+                    bool illegal = false;
+                    for (auto& action: toMove) {
+                        vector<Action> legalActions = cur.legal_actions();
+                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                            cur.apply_action(action);
+                        }
+                        else {
+                            printf("illegal action!\n");
+                            printBoardPlayers(true, player);
+                            illegal = true;
+                            break;
+                        }
+                    }
+                    if (illegal) {
+                        cur = pre;
+                        continue;
+                    }
+                    printBoard(cur.get_board());
+                }
+                // place
+                while (fgets(sendline, MAXLINE, stdin) != NULL) {
+                    toMove = state.string_to_action(sendline);
+                    if (toMove.size() != 2) {
+                        printf("illegal action!\n");
+                        printBoardPlayers(true, player);
+                        continue;
+                    }
+                    bool reset = false;
+                    for (auto& action: toMove) {
+                        vector<Action> legalActions = cur.legal_actions();
+                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                            cur.apply_action(action);
+                        }
+                        else {
+                            printf("illegal action!\n");
+                            printBoardPlayers(true, player);
+                            reset = true;
+                            break;
+                        }
+                    }
+                    if (reset) {
+                        cur = pre;
+                        continue;
+                    }
+                    printBoard(cur.get_board());                    
                 }
             }
             else if (strcmp(recvline, "Waiting for the second player...\n") == 0) {
