@@ -116,7 +116,11 @@ void *game_room(void* room_id_void){
                     else{   // second player
                         write(p, "Game Start!\n", 12);
                         printf("To %d: Game Start!\n", p);
+                        // send all players' id to all players
+                        // write()
+
                         write(players_fd[room_id][0], "Your turn!\n", 11);
+
                     }
                 }
                 else{
@@ -132,23 +136,30 @@ void *game_room(void* room_id_void){
                                 if(std::find(actions.begin(), actions.end(), a3) != actions.end()){
                                     game.apply_action(a3);
                                     // send board info to others
-                                    for(int i = 0;i < max(players_fd[room_id].size(), viewers_fd[room_id].size());i++){
-                                        if(i < players_fd[room_id].size()){
-                                            // board
-                                            write(players_fd[room_id][i], game.get_board().c_str(), game.get_board().length());
+                                    for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
+                                        std::string send = game.get_board() + " " + std::to_string(game.get_turn()) + "\n";
+                                        int length = send.length();
+                                        if(j < players_fd[room_id].size()){
+                                            // board + turn
+                                            write(players_fd[room_id][j], send.c_str(), length);
                                         }
-                                        if(i < viewers_fd[room_id].size()){
-                                            // board
-                                            write(viewers_fd[room_id][i], game.get_board().c_str(), game.get_board().length());
+                                        if(j < viewers_fd[room_id].size()){
+                                            // board +turn 
+                                            write(viewers_fd[room_id][j], send.c_str(), length);
                                         }
                                     }
+                                    sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][game.current_player()]].c_str());
+                                    sendline[strlen(sendline)] = 0;
+                                    write(players_fd[room_id][game.current_player()], "Your turn!\n", 11);
+                                    write(players_fd[room_id][1 - game.current_player()], sendline, strlen(sendline));
+                                    for(auto& x: viewers_fd[room_id]) write(x, sendline, strlen(sendline));
                                     // end
                                     continue;
                                 }
                             }
                         }
                         // send "resend" to the player
-                        write(players_fd[room_id][i], "illegal\n", 8);
+                        write(p, "illegal\n", 8);
 
                     }
                     else{

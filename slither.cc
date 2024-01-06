@@ -16,7 +16,6 @@ std::string State::get_board() const {
 	for (int i=0; i<kNumOfGrids; i++) {
 		board += std::to_string(board_[i]);
 	}
-	board += "\n";
 	return board;
 }
 void State::set_board(std::vector<int> board) {
