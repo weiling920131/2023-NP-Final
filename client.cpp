@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <cstring>
+#include <algorithm>
 
 #define SERV_PORT 7122
 #define MAXLINE 4096
@@ -66,16 +67,16 @@ void game(Player player) {
                 // move
                 bool reset = false;
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-                    toMove = state.string_to_action(sendline);
+                    toMove = cur.string_to_action(sendline);
                     if (toMove.size() != 2) {
                         printf("illegal action!\n");
                         printBoardPlayers(true, player);
                         continue;
                     }
                     bool illegal = false;
-                    for (auto& action: toMove) {
+                    for (auto action: toMove) {
                         vector<Action> legalActions = cur.legal_actions();
-                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                        if (std::find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
                             cur.apply_action(action);
                         }
                         else {
@@ -93,16 +94,16 @@ void game(Player player) {
                 }
                 // place
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-                    toMove = state.string_to_action(sendline);
+                    toMove = cur.string_to_action(sendline);
                     if (toMove.size() != 2) {
                         printf("illegal action!\n");
                         printBoardPlayers(true, player);
                         continue;
                     }
                     bool reset = false;
-                    for (auto& action: toMove) {
+                    for (auto action: toMove) {
                         vector<Action> legalActions = cur.legal_actions();
-                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                        if (std::find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
                             cur.apply_action(action);
                         }
                         else {
