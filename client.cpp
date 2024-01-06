@@ -28,7 +28,7 @@ int sockfd, n;
 char sendline[MAXLINE], recvline[MAXLINE];
 
 void game(Player player) {
-    vector<string> playerID[2], viewerID;
+    vector<string> playerID(2), viewerID;
     printSlither();
     printServ();
     printServMsg("Type your name to start the game.");
@@ -37,7 +37,7 @@ void game(Player player) {
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         write(sockfd, sendline, strlen(sendline));
         sendline[strlen(sendline)-1] = 0;
-        playerID[player] = sendline;
+        playerID[player] = string(sendline);
 
         printLoading();
         if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
