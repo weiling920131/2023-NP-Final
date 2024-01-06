@@ -11,11 +11,12 @@ Player State::current_player() const {
 Player State::get_winner() const {
   	return winner_;
 }
-std::vector<int> State::get_board() const {
-	std::vector<int> board(kNumOfGrids);
+std::string State::get_board() const {
+	std::string board = "";
 	for (int i=0; i<kNumOfGrids; i++) {
-		board[i] = board_[i];
+		board += std::to_string(board_[i]);
 	}
+	board += "\n";
 	return board;
 }
 void State::set_board(std::vector<int> board) {

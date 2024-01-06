@@ -41,6 +41,7 @@ vector<int>                 connfd(MAX_CLIENT, -1);
 vector<struct sockaddr_in>	cliaddr(MAX_CLIENT);
 vector<socklen_t>			clilen(MAX_CLIENT, sizeof(cliaddr[0]));
 
+
 void *game_room(void* room_id_void){
     struct timeval myTimeval;
     myTimeval.tv_sec = 5;  
@@ -123,17 +124,31 @@ void *game_room(void* room_id_void){
                         recvline[n-1] = 0;
                         int a1, a2, a3;
                         sscanf(recvline, "%d %d %d", &a1, &a2, &a3);
-                        if(game.legal_actions.find(a1) != game.legal_actions.end()) {
+                        vector<int> actions = game.legal_actions();
+                        if(std::find(actions.begin(), actions.end(), a1) != actions.end()) {
                             game.apply_action(a1);
-                            if(game.legal_actions.find(a2) != game.legal_actions.end()){
+                            if(std::find(actions.begin(), actions.end(), a2) != actions.end()){
                                 game.apply_action(a2);
-                                if(game.legal_actions.find(a3) != game.legal_actions.end()){
+                                if(std::find(actions.begin(), actions.end(), a3) != actions.end()){
                                     game.apply_action(a3);
                                     // send board info to others
+                                    for(int i = 0;i < max(players_fd[room_id].size(), viewers_fd[room_id].size());i++){
+                                        if(i < players_fd[room_id].size()){
+                                            // board
+                                            write(players_fd[room_id][i], game.get_board().c_str(), game.get_board().length());
+                                        }
+                                        if(i < viewers_fd[room_id].size()){
+                                            // board
+                                            write(viewers_fd[room_id][i], game.get_board().c_str(), game.get_board().length());
+                                        }
+                                    }
+                                    // end
+                                    continue;
                                 }
                             }
                         }
                         // send "resend" to the player
+                        write(players_fd[room_id][i], "illegal\n", 8);
 
                     }
                     else{

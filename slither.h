@@ -26,7 +26,7 @@ public:
 
     Player current_player() const;
     Player get_winner() const;
-    std::vector<int> get_board() const;
+    std::string get_board() const;
     void set_board(std::vector<int>);
     std::vector<Action> legal_actions() const;
     void apply_action(const Action &);
