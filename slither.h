@@ -27,7 +27,8 @@ public:
     Player current_player() const;
     Player get_winner() const;
     std::string get_board() const;
-    void set_board(std::vector<int>);
+    void set_board(std::string);
+    int get_turn();
     std::vector<Action> legal_actions() const;
     void apply_action(const Action &);
     bool is_terminal() const;

@@ -14,6 +14,8 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <cstring>
+#include <algorithm>
+#include <unordered_map>
 
 #define SERV_PORT 7122
 #define MAXLINE 4096
@@ -54,29 +56,42 @@ void game(Player player) {
     }
     if (!inRoom) return;
 
-    State pre, cur;
+    State cur, m, p;
     printBoard(cur.get_board());
+
+    if (player == 0 && strcmp(recvline, "Waiting for the second player...\n") == 0) {
+        printBoardPlayer();
+        printf("%s", recvline);
+        // Your turn!
+        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            printLoading();
+            printf("\033[1A\033[0K\033[50CConnection error\n");
+            return;
+        }
+        recvline[n] = 0;
+    }
 
     while (1) {
         vector<Action> toMove, toPlace;
-        // BLACK
-        if (player == 0) {
+        // Players
+        if (player == 0 || player == 1) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
                 printBoardPlayers(true, player);
-                // move
+
                 bool reset = false;
+                // move
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-                    toMove = state.string_to_action(sendline);
+                    toMove = m.string_to_action(sendline);
                     if (toMove.size() != 2) {
                         printf("illegal action!\n");
                         printBoardPlayers(true, player);
                         continue;
                     }
                     bool illegal = false;
-                    for (auto& action: toMove) {
-                        vector<Action> legalActions = cur.legal_actions();
-                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
-                            cur.apply_action(action);
+                    for (auto action: toMove) {
+                        vector<Action> legalActions = m.legal_actions();
+                        if (std::find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                            m.apply_action(action);
                         }
                         else {
                             printf("illegal action!\n");
@@ -86,59 +101,42 @@ void game(Player player) {
                         }
                     }
                     if (illegal) {
-                        cur = pre;
+                        m = cur;
                         continue;
                     }
-                    printBoard(cur.get_board());
+                    printBoard(m.get_board());
                 }
+                p = m;
                 // place
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
-                    toMove = state.string_to_action(sendline);
-                    if (toMove.size() != 2) {
+                    if (strcmp(sendline, "reset\n") == 0) {
+                        reset = true;
+                        break;
+                    }
+                    toPlace = p.string_to_action(sendline);
+                    if (toPlace.size() != 1) {
                         printf("illegal action!\n");
                         printBoardPlayers(true, player);
                         continue;
                     }
-                    bool reset = false;
-                    for (auto& action: toMove) {
-                        vector<Action> legalActions = cur.legal_actions();
-                        if (find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
-                            cur.apply_action(action);
-                        }
-                        else {
-                            printf("illegal action!\n");
-                            printBoardPlayers(true, player);
-                            reset = true;
-                            break;
-                        }
+                    vector<Action> legalActions = p.legal_actions();
+                    if (std::find(legalActions.begin(), legalActions.end(), toPlace[0]) != legalActions.end()) {
+                        p.apply_action(toPlace[0]);
                     }
-                    if (reset) {
-                        cur = pre;
+                    else {
+                        printf("illegal action!\n");
+                        printBoardPlayers(true, player);
+                        p = m;
                         continue;
                     }
-                    printBoard(cur.get_board());                    
+                    printBoard(p.get_board());          
                 }
-            }
-            else if (strcmp(recvline, "Waiting for the second player...\n") == 0) {
-                printBoardPlayer();
-                printf("%s", recvline);
-                // Your turn!
-                if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
-                    printLoading();
-                    printf("\033[1A\033[0K\033[50CConnection error\n");
-                    return;
+                if (reset) {
+                    p = m = cur;
+                    continue;
                 }
-                recvline[n] = 0;
-                continue;
-            }
-            else {
-                printBoardPlayers(false, player);
-            }
-        }
-        // WHITE
-        else if (player == 1) {
-            if (strcmp(recvline, "Your turn!\n") == 0) {
-                printBoardPlayers(true, player);
+                sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
+                write(sockfd, sendline, strlen(sendline));
             }
             else {
                 printBoardPlayers(false, player);
@@ -156,8 +154,10 @@ void game(Player player) {
             return;
         }
         recvline[n] = 0;
-        // state.set_board();
-        // printBoard();
+        cur.set_board(string(recvline));
+        p = m = cur;
+        printBoard(cur.get_board());
+
         // next turn
         if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
@@ -166,25 +166,6 @@ void game(Player player) {
         }
         recvline[n] = 0;
     }
-    // vector<Action> play;
-    // char input[10];
-    // while (1) {
-    //     // erase previous input
-    //     printf("\033[26;37H\033[0K");
-    //     fgets(input, sizeof(input), stdin);
-    //     // move cursor to middle
-    //     printf("\033[27;37H\033[0K");
-
-    //     play = state.string_to_action(input);
-    //     if (play.size() != 3) {
-    //         printf("illegal move!\n");
-    //         continue;
-    //     }
-    //     else {
-    //         printf("%d %d %d\n", play[0], play[1], play[2]);
-    //     }
-    //     // printBoard(state.get_board());
-    // }
 }
 
 int main(int argc, char **argv) {
