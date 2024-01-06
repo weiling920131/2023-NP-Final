@@ -28,6 +28,7 @@ int sockfd, n;
 char sendline[MAXLINE], recvline[MAXLINE];
 
 void game(Player player) {
+    vector<string> playerID[2], viewerID;
     printSlither();
     printServ();
     printServMsg("Type your name to start the game.");
@@ -35,6 +36,9 @@ void game(Player player) {
     bool inRoom = false;
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         write(sockfd, sendline, strlen(sendline));
+        sendline[strlen(sendline)-1] = 0;
+        playerID[player] = sendline;
+
         printLoading();
         if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
             printf("\033[1A\033[0K\033[50CConnection error\n");
@@ -70,6 +74,7 @@ void game(Player player) {
         }
         recvline[n] = 0;
     }
+    printBoard(cur.get_board());
 
     while (1) {
         vector<Action> toMove, toPlace;
@@ -77,14 +82,15 @@ void game(Player player) {
         if (player == 0 || player == 1) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
                 printBoardPlayers(true, player);
+                printf("Move _ to _ : ");
 
-                bool reset = false;
                 // move
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
                     toMove = m.string_to_action(sendline);
                     if (toMove.size() != 2) {
-                        printf("illegal action!\n");
+                        printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
+                        printf("Move _ to _ : ");
                         continue;
                     }
                     bool illegal = false;
@@ -94,8 +100,9 @@ void game(Player player) {
                             m.apply_action(action);
                         }
                         else {
-                            printf("illegal action!\n");
+                            printf("\033[28;40HIllegal action!\n");
                             printBoardPlayers(true, player);
+                            printf("Move _ to _ : ");
                             illegal = true;
                             break;
                         }
@@ -105,9 +112,14 @@ void game(Player player) {
                         continue;
                     }
                     printBoard(m.get_board());
+                    printBoardPlayers(true, player);
+                    printf("Place _ : ");
+                    break;
                 }
                 p = m;
+
                 // place
+                bool reset = false;
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
                     if (strcmp(sendline, "reset\n") == 0) {
                         reset = true;
@@ -115,8 +127,9 @@ void game(Player player) {
                     }
                     toPlace = p.string_to_action(sendline);
                     if (toPlace.size() != 1) {
-                        printf("illegal action!\n");
+                        printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
+                        printf("Place _ : ");
                         continue;
                     }
                     vector<Action> legalActions = p.legal_actions();
@@ -124,15 +137,19 @@ void game(Player player) {
                         p.apply_action(toPlace[0]);
                     }
                     else {
-                        printf("illegal action!\n");
+                        printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
+                        printf("Place _ : ");
                         p = m;
                         continue;
                     }
-                    printBoard(p.get_board());          
+                    printBoard(p.get_board());
+                    printBoardPlayers(true, player);
+                    break;
                 }
                 if (reset) {
                     p = m = cur;
+                    printBoard(cur.get_board());
                     continue;
                 }
                 sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
