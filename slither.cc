@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <stack>
 #include <iostream>
+#include <stdio.h>
 
 Player State::current_player() const {
   	return (Player)((turn_ % 6) / 3);
@@ -16,14 +17,20 @@ std::string State::get_board() const {
 	for (int i=0; i<kNumOfGrids; i++) {
 		board += std::to_string(board_[i]);
 	}
-	board += "\n";
 	return board;
 }
-void State::set_board(std::vector<int> board) {
+void State::set_board(std::string input) {
+	char* board;
+	int turn;
+	sscanf(input.c_str(), "%s %d\n", board, &turn);
 	for (int i=0; i<kNumOfGrids; i++) {
-		board_[i] = board[i];
+		board_[i] = board[i] - '0';
 	}
+	turn_ = turn;
 	return;
+}
+int State::get_turn() {
+	return turn_;
 }
 std::vector<Action> State::legal_actions() const {
 	std::vector<Action> actions;
