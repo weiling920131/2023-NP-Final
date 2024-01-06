@@ -70,11 +70,40 @@ void *game_room(void* room_id_void){
         select(maxfdp1, &rset, NULL, NULL, &myTimeval);
 
         for(int i = 0;i<players_fd[room_id].size();i++){
+            if(game.is_terminal()){
+                int winner = game.get_winner();
+                for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
+                    sprintf(sendline, "%s win!\n", player_id[players_fd[room_id][winner]].c_str());
+                    if(j < players_fd[room_id].size()){
+                        write(players_fd[room_id][j], sendline, strlen(sendline));
+                        printf("To %d: %s", players_fd[room_id][j], sendline);
+                    }
+                    if(j < viewers_fd[room_id].size()){
+                        write(viewers_fd[room_id][j], sendline, strlen(sendline));
+                        printf("To %d: %s", viewers_fd[room_id][j], sendline);
+                    }
+                }
+                players_fd[room_id].clear();
+                viewers_fd[room_id].clear();
+                cur_room--;
+                for (auto& x: players_fd[room_id]) {
+                    std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
+                    int available = it - connfd.begin();
+                    connfd[available] = x;
+                }
+                for (auto& x: viewers_fd[room_id]) {
+                    std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
+                    int available = it - connfd.begin();
+                    connfd[available] = x;
+                }
+                pthread_exit(NULL);
+            }
+
             auto p = players_fd[room_id][i];
 
             if(FD_ISSET(p, &rset)){
                 if(player_id.find(p) == player_id.end()){ // if the player is new
-                    if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                    if((n = read(p, recvline, MAXLINE)) <= 0) { // disconnect before entering a name
                         if (i == 0) {
                             printf("From %d: Disconnect!\n", p);
                             players_fd[room_id].clear();
@@ -120,20 +149,21 @@ void *game_room(void* room_id_void){
                         // write()
 
                         write(players_fd[room_id][0], "Your turn!\n", 11);
+                        printf("To %d: Your turn!\n", players_fd[room_id][0]);
 
                     }
                 }
                 else{
-                    if(n = read(p, recvline, MAXLINE) > 0) {
-                        recvline[n-1] = 0;
+                    if((n = read(p, recvline, MAXLINE)) > 0) {
+                        recvline[n] = 0;
+                        printf("From %d: %s", p, recvline);
                         int a1, a2, a3;
-                        sscanf(recvline, "%d %d %d", &a1, &a2, &a3);
-                        vector<int> actions = game.legal_actions();
-                        if(std::find(actions.begin(), actions.end(), a1) != actions.end()) {
+                        sscanf(recvline, "%d %d %d\n", &a1, &a2, &a3);
+                        if(std::find(game.legal_actions().begin(), game.legal_actions().end(), a1) != game.legal_actions().end()) {
                             game.apply_action(a1);
-                            if(std::find(actions.begin(), actions.end(), a2) != actions.end()){
+                            if(std::find(game.legal_actions().begin(), game.legal_actions().end(), a2) != game.legal_actions().end()){
                                 game.apply_action(a2);
-                                if(std::find(actions.begin(), actions.end(), a3) != actions.end()){
+                                if(std::find(game.legal_actions().begin(), game.legal_actions().end(), a3) != game.legal_actions().end()){
                                     game.apply_action(a3);
                                     // send board info to others
                                     for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
@@ -148,11 +178,17 @@ void *game_room(void* room_id_void){
                                             write(viewers_fd[room_id][j], send.c_str(), length);
                                         }
                                     }
+                                    if(game.is_terminal()) continue;
                                     sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][game.current_player()]].c_str());
                                     sendline[strlen(sendline)] = 0;
                                     write(players_fd[room_id][game.current_player()], "Your turn!\n", 11);
+                                    printf("To %d: Your turn!\n", players_fd[room_id][game.current_player()]);
                                     write(players_fd[room_id][1 - game.current_player()], sendline, strlen(sendline));
-                                    for(auto& x: viewers_fd[room_id]) write(x, sendline, strlen(sendline));
+                                    printf("To %d: %s", players_fd[room_id][1 - game.current_player()], sendline);
+                                    for(auto& x: viewers_fd[room_id]) {
+                                        write(x, sendline, strlen(sendline));
+                                        printf("To %d: %s", x, sendline);
+                                    }
                                     // end
                                     continue;
                                 }
@@ -160,14 +196,21 @@ void *game_room(void* room_id_void){
                         }
                         // send "resend" to the player
                         write(p, "illegal\n", 8);
+                        printf("To %d: illegal\n", p);
 
                     }
                     else{
                         printf("From %d: Disconnect!\n", p);
                         // TODO : send message to the other player and determine who wins
                         players_fd[room_id].clear();
+                        viewers_fd[room_id].clear();
                         cur_room--;
                         for (auto& x: players_fd[room_id]) {
+                            std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
+                            int available = it - connfd.begin();
+                            connfd[available] = x;
+                        }
+                        for (auto& x: viewers_fd[room_id]) {
                             std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
                             int available = it - connfd.begin();
                             connfd[available] = x;
@@ -185,7 +228,7 @@ void *game_room(void* room_id_void){
 
             if(FD_ISSET(p, &rset)){
                 if(player_id.find(p) == player_id.end()){ // if the player is new
-                    if(n = read(p, recvline, MAXLINE) <= 0) { // disconnect before entering a name
+                    if((n = read(p, recvline, MAXLINE)) <= 0) { // disconnect before entering a name
                         printf("From %d: Disconnect!\n", p);
                         viewers_fd[room_id].erase(std::find(viewers_fd[room_id].begin(), viewers_fd[room_id].end(), p));
                         std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
@@ -210,7 +253,7 @@ void *game_room(void* room_id_void){
                     printf("To %d: A gentleman should keep silent while watching.\n", p);
                 }
                 else{
-                    if(n = read(p, recvline, MAXLINE) > 0) {
+                    if((n = read(p, recvline, MAXLINE)) > 0) {
                         recvline[n-1] = 0;
                     }
                     else{
