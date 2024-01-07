@@ -114,7 +114,7 @@ void game(Player player) {
                     }
                     printBoard(m.get_board());
                     printBoardPlayers(true, player);
-                    printf("Place _ (or \033[32mreset\033[30m move): ");
+                    printf("Place _ (or reset move): ");
                     break;
                 }
                 p = m;
@@ -130,7 +130,7 @@ void game(Player player) {
                     if (toPlace.size() != 1) {
                         printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
-                        printf("Place _ (or \033[32mreset\033[30m move): ");
+                        printf("Place _ (or reset move): ");
                         continue;
                     }
                     vector<Action> legalActions = p.legal_actions();
@@ -140,7 +140,7 @@ void game(Player player) {
                     else {
                         printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
-                        printf("Place _ (or \033[32mreset\033[30m move): ");
+                        printf("Place _ (or reset move): ");
                         p = m;
                         continue;
                     }
@@ -158,6 +158,7 @@ void game(Player player) {
             }
             else {
                 printBoardPlayers(false, player);
+                printf("%s", recvline);
             }
         }
         // Viewer

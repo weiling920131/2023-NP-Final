@@ -143,8 +143,9 @@ void *game_room(void* room_id_void){
                         printf("To %d: Waiting for the second player...\n", p);
                     }
                     else{   // second player
-                        write(p, "Game Start!\n", 12);
-                        printf("To %d: Game Start!\n", p);
+                        sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][0]].c_str());
+                        write(p, sendline, strlen(sendline));
+                        printf("To %d: %s", p, sendline);
                         // send all players' id to all players
                         // write()
 
@@ -182,7 +183,6 @@ void *game_room(void* room_id_void){
                                     }
                                     if(game.is_terminal()) continue;
                                     sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][game.current_player()]].c_str());
-                                    sendline[strlen(sendline)] = 0;
                                     write(players_fd[room_id][game.current_player()], "Your turn!\n", 11);
                                     printf("To %d: Your turn!\n", players_fd[room_id][game.current_player()]);
                                     write(players_fd[room_id][1 - game.current_player()], sendline, strlen(sendline));
