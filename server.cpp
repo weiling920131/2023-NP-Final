@@ -172,10 +172,12 @@ void *game_room(void* room_id_void){
                                         if(j < players_fd[room_id].size()){
                                             // board + turn
                                             write(players_fd[room_id][j], send.c_str(), length);
+                                            printf("To %d: %s", players_fd[room_id][j], send.c_str());
                                         }
                                         if(j < viewers_fd[room_id].size()){
                                             // board +turn 
                                             write(viewers_fd[room_id][j], send.c_str(), length);
+                                            printf("To %d: %s", viewers_fd[room_id][j], send.c_str());
                                         }
                                     }
                                     if(game.is_terminal()) continue;

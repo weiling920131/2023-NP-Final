@@ -1,5 +1,6 @@
 #include "slither.h"
 #include "ansi.h"
+#include "readline.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +41,7 @@ void game(Player player) {
         playerID[player] = string(sendline);
 
         printLoading();
-        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+        if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printf("\033[1A\033[0K\033[50CConnection error\n");
             return;
         }
@@ -67,14 +68,14 @@ void game(Player player) {
         printBoardPlayer();
         printf("%s", recvline);
         // Your turn!
-        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+        if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
             return;
         }
         recvline[n] = 0;
+        printBoard(cur.get_board());
     }
-    printBoard(cur.get_board());
 
     while (1) {
         vector<Action> toMove, toPlace;
@@ -113,7 +114,7 @@ void game(Player player) {
                     }
                     printBoard(m.get_board());
                     printBoardPlayers(true, player);
-                    printf("Place _ : ");
+                    printf("Place _ (or \033[32mreset\033[30m move): ");
                     break;
                 }
                 p = m;
@@ -129,7 +130,7 @@ void game(Player player) {
                     if (toPlace.size() != 1) {
                         printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
-                        printf("Place _ : ");
+                        printf("Place _ (or \033[32mreset\033[30m move): ");
                         continue;
                     }
                     vector<Action> legalActions = p.legal_actions();
@@ -139,7 +140,7 @@ void game(Player player) {
                     else {
                         printf("\033[28;40HIllegal action!\n");
                         printBoardPlayers(true, player);
-                        printf("Place _ : ");
+                        printf("Place _ (or \033[32mreset\033[30m move): ");
                         p = m;
                         continue;
                     }
@@ -165,7 +166,7 @@ void game(Player player) {
         }
 
         // update board
-        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+        if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
             return;
@@ -176,7 +177,7 @@ void game(Player player) {
         printBoard(cur.get_board());
 
         // next turn
-        if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+        if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
             return;
@@ -209,7 +210,7 @@ int main(int argc, char **argv) {
     }
 
     // Connect successfully!
-    if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+    if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
         printf("\033[1A\033[0K\033[50CConnection error\n");
         return 0;
     }
@@ -226,7 +227,7 @@ int main(int argc, char **argv) {
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         if (flag == 0 && strcmp(sendline, "C\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
-            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
                 return 0;
@@ -245,7 +246,7 @@ int main(int argc, char **argv) {
         }
         else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
-            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
                 return 0;
@@ -271,7 +272,7 @@ int main(int argc, char **argv) {
         }
         else if (flag == 1 && ((isdigit(sendline[0]) && sendline[1] == '\n') || strcmp(sendline, "R\n") == 0)) {
             write(sockfd, sendline, strlen(sendline));
-            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
+            if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
                 return 0;
