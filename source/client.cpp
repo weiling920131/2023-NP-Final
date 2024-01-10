@@ -37,11 +37,11 @@ void *timer(void *arg) {
         if (timerStop) pthread_exit(NULL);
         m = sec / 60;
         s = sec % 60;
-        printf("\033[26;40H\033[0K\033[5;36m%02d:%02d\033[25;30m\n", m, s);
-        printf("\033[27;50H\033[0K : ");
+        printf("\033]0;%02d:%02d\007\n", m, s);
         sleep(1);
     }
     timesup = true;
+    printf("\033]0;Slither\007\n");
     pthread_exit(NULL);
 }
 
