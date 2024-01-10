@@ -27,9 +27,27 @@ using namespace std;
 
 int sockfd, n;
 char sendline[MAXLINE], recvline[MAXLINE];
+pthread_t timer_thread;
+bool timerStop;
+
+void *timer(void *arg) {
+    int m, s;
+    for (int sec = 90; sec >= 0; sec--) {
+        if (timerStop) pthread_exit(NULL);
+        m = sec / 60;
+        s = sec % 60;
+        printf("\033[26;40H\033[0K\033[5;31m%02d : %02d\033[25;30m\n", m, s);
+        sleep(1);
+    }
+    pthread_exit(NULL);
+}
 
 void game(Player player) {
+	// fd_set rset;
+    // int maxfdp1;
+    // bool stdinEOF, peerExit;
     vector<string> playerID(2), viewerID;
+
     printSlither();
     printServ();
     printServMsg("Type your name to start the game.");
@@ -37,11 +55,10 @@ void game(Player player) {
     bool inRoom = false;
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         write(sockfd, sendline, strlen(sendline));
-        sendline[strlen(sendline)-1] = 0;
-        playerID[player] = string(sendline);
 
-        printLoading();
+        // Waiting... or Game start
         if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
+            printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
             return;
         }
@@ -62,35 +79,68 @@ void game(Player player) {
     if (!inRoom) return;
 
     State cur, m, p;
-    printBoard(cur.get_board());
 
-    if (player == 0 && strcmp(recvline, "Waiting for the second player...\n") == 0) {
-        printBoardPlayer();
-        printf("%s", recvline);
-        // Your turn!
-        if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
-            printLoading();
-            printf("\033[1A\033[0K\033[50CConnection error\n");
-            return;
-        }
-        recvline[n] = 0;
+    if (player == 0) {
         printBoard(cur.get_board());
+        printBoardPlayer();
+        // Waiting for the second player...
+        printf("%s", recvline);
     }
 
+    // players' ID
+    if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
+        printLoading();
+        printf("\033[1A\033[0K\033[50CConnection error\n");
+        return;
+    }
+    recvline[n] = 0;
+    istringstream iss(recvline);
+    iss >> playerID[0];
+    iss >> playerID[1];
+
+    // Someone's turn!
+    if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
+        printLoading();
+        printf("\033[1A\033[0K\033[50CConnection error\n");
+        return;
+    }
+    recvline[n] = 0;
+    printBoard(cur.get_board());
+
+    // stdinEOF = false;
+    // peerExit = false;
+    // for( ; ; ){
+    //     FD_ZERO(&rset);
+	// 	maxfdp1 = 0;
+    //     if (!stdinEOF) {
+    //         FD_SET(STDIN_FILENO, &rset);
+	// 		maxfdp1 = STDIN_FILENO;
+	// 	}
+	// 	if (!peerExit) {
+	// 		FD_SET(sockfd, &rset);
+	// 		maxfdp1 = max(maxfdp1, sockfd);
+	// 	}
+    //     maxfdp1++;
+    //     Select(maxfdp1, &rset, NULL, NULL, NULL);
+
+    // }
     while (1) {
         vector<Action> toMove, toPlace;
         // Players
         if (player == 0 || player == 1) {
             if (strcmp(recvline, "Your turn!\n") == 0) {
-                printBoardPlayers(true, player);
+                printBoardPlayers(true, player, playerID);
                 printf("Move _ to _ : ");
+
+                timerStop = false;
+                pthread_create(&timer_thread, NULL, timer, NULL);
 
                 // move
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
                     toMove = m.string_to_action(sendline);
                     if (toMove.size() != 2) {
                         printf("\033[28;40HIllegal action!\n");
-                        printBoardPlayers(true, player);
+                        printBoardPlayers(true, player, playerID);
                         printf("Move _ to _ : ");
                         continue;
                     }
@@ -102,7 +152,7 @@ void game(Player player) {
                         }
                         else {
                             printf("\033[28;40HIllegal action!\n");
-                            printBoardPlayers(true, player);
+                            printBoardPlayers(true, player, playerID);
                             printf("Move _ to _ : ");
                             illegal = true;
                             break;
@@ -113,7 +163,7 @@ void game(Player player) {
                         continue;
                     }
                     printBoard(m.get_board());
-                    printBoardPlayers(true, player);
+                    printBoardPlayers(true, player, playerID);
                     printf("Place _ (or reset move): ");
                     break;
                 }
@@ -129,7 +179,7 @@ void game(Player player) {
                     toPlace = p.string_to_action(sendline);
                     if (toPlace.size() != 1) {
                         printf("\033[28;40HIllegal action!\n");
-                        printBoardPlayers(true, player);
+                        printBoardPlayers(true, player, playerID);
                         printf("Place _ (or reset move): ");
                         continue;
                     }
@@ -139,13 +189,13 @@ void game(Player player) {
                     }
                     else {
                         printf("\033[28;40HIllegal action!\n");
-                        printBoardPlayers(true, player);
+                        printBoardPlayers(true, player, playerID);
                         printf("Place _ (or reset move): ");
                         p = m;
                         continue;
                     }
                     printBoard(p.get_board());
-                    printBoardPlayers(true, player);
+                    printBoardPlayers(true, player, playerID);
                     break;
                 }
                 if (reset) {
@@ -155,9 +205,11 @@ void game(Player player) {
                 }
                 sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
                 write(sockfd, sendline, strlen(sendline));
+                timerStop = true;
+                pthread_join(timer_thread, NULL);
             }
             else {
-                printBoardPlayers(false, player);
+                printBoardPlayers(false, player, playerID);
                 printf("%s", recvline);
             }
         }
@@ -234,7 +286,7 @@ int main(int argc, char **argv) {
                 return 0;
             }
             recvline[n] = 0;
-            if (strcmp(recvline, "OK\n") == 0) {
+            if (strcmp(recvline, "Player1\n") == 0) {
                 game(0);
                 if (n <= 0) return 0;
             }
@@ -247,7 +299,7 @@ int main(int argc, char **argv) {
         }
         else if (flag == 0 && strcmp(sendline, "E\n") == 0) {
             write(sockfd, sendline, strlen(sendline));
-            if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
+            if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
                 return 0;
@@ -279,7 +331,7 @@ int main(int argc, char **argv) {
                 return 0;
             }
             recvline[n] = 0;
-            if (strcmp(recvline, "Player\n") == 0) {
+            if (strcmp(recvline, "Player2\n") == 0) {
                 game(1);
                 if (n <= 0) return 0;
             }

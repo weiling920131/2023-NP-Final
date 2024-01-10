@@ -168,14 +168,18 @@ void *game_room(void* room_id_void){
                         printf("To %d: Waiting for the second player...\n", p);
                     }
                     else{   // second player
+                        write(p, "Game start!\n", 12);
+                        printf("To %d: Game start!\n", p);
+                        // send all players' id to all players
+                        bzero(sendline, MAXLINE);
+                        sprintf(sendline, "%s %s\n", player_id[players_fd[room_id][0]].c_str(), player_id[players_fd[room_id][1]].c_str());
+                        write(players_fd[room_id][0], sendline, strlen(sendline));
+                        write(players_fd[room_id][1], sendline, strlen(sendline));
+                        printf("To %d %d: %s", players_fd[room_id][0], p, sendline);
+                        // send turn
                         sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][0]].c_str());
                         write(p, sendline, strlen(sendline));
                         printf("To %d: %s", p, sendline);
-                        // send all players' id to all players
-                        bzero(sendline, MAXLINE);
-                        sprintf(sendline, "%s\n%s\n", player_id[players_fd[room_id][0]].c_str(), player_id[players_fd[room_id][1]].c_str());
-                        write(players_fd[room_id][0], sendline, strlen(sendline));
-                        write(players_fd[room_id][1], sendline, strlen(sendline));
 
                         write(players_fd[room_id][0], "Your turn!\n", 11);
                         printf("To %d: Your turn!\n", players_fd[room_id][0]);
@@ -314,9 +318,6 @@ int main(int argc, char **argv){
     printf("\033[=3h");
     printf("\033[2J");
 
-    printf("Server running...\n");
-
-
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
 	bzero(&servaddr, sizeof(servaddr));
@@ -327,6 +328,8 @@ int main(int argc, char **argv){
 	bind(listenfd, (SA *) &servaddr, sizeof(servaddr));
 
 	listen(listenfd, LISTENQ);
+
+    printf("Server running...\n");
 
     // Signal(SIGCHLD, sig_chld);
     int                         maxfdp1, n;
@@ -386,12 +389,12 @@ int main(int argc, char **argv){
                     else{
                         for(int room_id = 0;room_id < MAX_CHATROOM;room_id++){
                             if(players_fd[room_id].size() == 0) {
+                                write(connfd[i], "Player1\n", 8);
+                                printf("To %d: Player1\n", connfd[i]);
+
                                 players_fd[room_id].push_back(connfd[i]);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
                                 cur_room++;
-
-                                write(connfd[i], "OK\n", 3);
-                                printf("To %d: OK\n", connfd[i]);
                                 connfd[i] = -1;
                                 break;
                             }
@@ -416,8 +419,8 @@ int main(int argc, char **argv){
                     bool enter = false;
                     for(int room_id = 0;room_id<MAX_CHATROOM;room_id++){
                         if(players_fd[room_id].size() == 1){
-                            write(connfd[i], "Player\n", 7);
-                            printf("To %d: Player\n", connfd[i]);
+                            write(connfd[i], "Player2\n", 8);
+                            printf("To %d: Player2\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
                             enter = true;
                             connfd[i] = -1;
@@ -433,8 +436,8 @@ int main(int argc, char **argv){
                 else if(isdigit(recvline[0])){ // Enter the room, client should check if the number is 0-9 and is listed on the screen
                     int room_id = recvline[0] - '0';
                     if(players_fd[room_id].size() == 1){ // Enter a room with one player
-                        write(connfd[i], "Player\n", 7);
-                        printf("To %d: Player\n", connfd[i]);
+                        write(connfd[i], "Player2\n", 8);
+                        printf("To %d: Player2\n", connfd[i]);
                         players_fd[room_id].push_back(connfd[i]);
                         connfd[i] = -1;
                     }
@@ -454,6 +457,14 @@ int main(int argc, char **argv){
                         printf("To %d: Invalid room ID!\n", connfd[i]);
                         continue;
                     }
+                }
+
+                else if(strcmp(recvline, "exit\n") == 0){
+                    printf("From %d: Disconnect!\n", connfd[i]);
+                    connfd[i] = -1;
+                    bzero(&cliaddr[i], sizeof(cliaddr[i]));
+                    bzero(&clilen[i], sizeof(clilen[i]));
+                    continue;
                 }
             }
         }

@@ -116,6 +116,8 @@ void init() {
     printf("\033[=3h");
     // set screen size
     printf("\033[8;30;120t");
+    // unable scroll
+    printf("\033[?10071");
     // set bold, black font, gray background
     printf("\033[1;30;100m");
     // make cursor invisible
@@ -279,49 +281,55 @@ void printBoard(string board) {
     return;
 }
 
-void printBoardPlayers(bool isYourTurn, int p) {
+void printBoardMsg(string msg) {
+
+}
+
+void printBoardPlayers(bool isYourTurn, int p, vector<string> ID) {
     if (isYourTurn) {
         if (p == 0) {
-            printf("\033[23H");
+            printf("\033[22H");
             for (const auto c: playing_cat_black) {
                 printf("\033[10C%s\n", c.c_str());
             }
         }
         else if (p == 1) {
-            printf("\033[23H");
+            printf("\033[22H");
             for (const auto c: playing_cat_white) {
                 printf("\033[10C%s\n", c.c_str());
             }
         }
+        printf("\033[10C%s\n", ID[p].c_str());
 
-        printf("\033[8H");
+        printf("\033[7H");
         for (const auto c: sleeping_cat) {
             printf("\033[91C%s\n", c.c_str());
         }
-        // make cursor visible
-        printf("\033[?25h");
+        printf("\033[91C%s\n", ID[1-p].c_str());
     }
     else {
-        printf("\033[25H");
+        printf("\033[24H");
         for (const auto c: sleeping_cat) {
             printf("\033[9C%s\n", c.c_str());
         }
+        printf("\033[9C%s\n", ID[p].c_str());
 
         if (p == 0) {
-            printf("\033[6H");
+            printf("\033[5H");
             for (const auto c: playing_cat_white) {
                 printf("\033[90C%s\n", c.c_str());
             }
         }
         else if (p == 1) {
-            printf("\033[6H");
+            printf("\033[5H");
             for (const auto c: playing_cat_black) {
                 printf("\033[90C%s\n", c.c_str());
             }
         }
-        // make cursor invisible
-        printf("\033[?25l");
+        printf("\033[90C%s\n", ID[1-p].c_str());
     }
+    // make cursor visible
+    printf("\033[?25h");
     // move cursor to middle
     printf("\033[27;40H\033[0K");
     return;
