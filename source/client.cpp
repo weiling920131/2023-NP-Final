@@ -27,7 +27,7 @@ using namespace std;
 
 int sockfd, n;
 char sendline[MAXLINE], recvline[MAXLINE];
-pthread_t timer_thread;
+pthread_t timerThread;
 bool timerStop;
 
 void *timer(void *arg) {
@@ -36,7 +36,7 @@ void *timer(void *arg) {
         if (timerStop) pthread_exit(NULL);
         m = sec / 60;
         s = sec % 60;
-        printf("\033[26;40H\033[0K\033[5;36m%02d:%02d\033[25;30m\n", m, s);
+        printf("\033[26;40H\033[0K\033[5;36m%02d:%02d\033[25;30m\n\n\033[39C", m, s);
         sleep(1);
     }
     pthread_exit(NULL);
@@ -72,7 +72,7 @@ void game(Player player) {
         if (hasSpace) continue;
         write(sockfd, sendline, strlen(sendline));
 
-        // Waiting... or Game start
+        // Waiting for the second player...
         if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
@@ -95,11 +95,16 @@ void game(Player player) {
     }
     if (!inRoom) return;
 
-    if (player == 0) {
+    // Waiting for the second player...
+    if (player == 0 || player == 1) {
         printBoard(cur.get_board());
         printBoardPlayer();
-        // Waiting for the second player...
+        // recvline[strlen(recvline)-1] = 0;
         printf("%s", recvline);
+    }
+    // board
+    else {
+        cur.set_board(string(recvline));
     }
 
     // players' ID
@@ -114,6 +119,8 @@ void game(Player player) {
     iss >> playerID[0];
     iss >> playerID[1];
 
+    string  blackTurn = playerID[0] + "'s turn!\n", 
+            whiteTurn = playerID[1] + "'s turn!\n";
 
     flag = 0;
     for ( ; ; ) {
@@ -136,37 +143,76 @@ void game(Player player) {
             }
             recvline[n] = 0;
 
-            if (strcmp(recvline, "BYE\n") == 0) {
-                return;
-            }
 			// Players
             if (player == 0 || player == 1) {
+                string isWin = string(recvline).substr(strlen(recvline) - strlen("win!\n"));
+                if (isWin == "win!\n") {
+                    if (flag == 1 || flag == 2) {
+                        timerStop = true;
+                        pthread_join(timerThread, NULL);
+                    }
+                    printBoard(cur.get_board());
+                    printBoardPlayers(true, player, playerID);
+                    printf("%s", recvline);
+                    sleep(1);
+                    return;
+                }
                 if (strcmp(recvline, "Your turn!\n") == 0) {
                     printBoard(cur.get_board());
                     printBoardPlayers(true, player, playerID);
-                    printf("Move _ to _ : ");
+                    printf("Move _ to _ :\n\033[39C");
 
                     timerStop = false;
-                    pthread_create(&timer_thread, NULL, timer, NULL);
+                    pthread_create(&timerThread, NULL, timer, NULL);
                     flag = 1;
                 }
                 // other's turn
                 else if (flag == 0){
+                    printBoard(cur.get_board());
                     printBoardPlayers(false, player, playerID);
-                    printf("%s", recvline);
+                    printf("%s\033[39C", recvline);
                     flag = 3;
                 }
                 // update board
                 else if (flag == 3) {
                     cur.set_board(string(recvline));
                     p = m = cur;
-                    printBoard(cur.get_board());
                     flag = 0;
                 }
             }
             // Viewers
             else {
-
+                string isWin = string(recvline).substr(strlen(recvline) - strlen("win!\n"));
+                if (isWin == "win!\n") {
+                    if (flag == 1 || flag == 2) {
+                        timerStop = true;
+                        pthread_join(timerThread, NULL);
+                    }
+                    printBoard(cur.get_board());
+                    printBoardPlayers(true, player, playerID);
+                    printf("%s", recvline);
+                    sleep(1);
+                    return;
+                }
+                // black's turn
+                if (strcmp(recvline, blackTurn.c_str()) == 0) {
+                    printBoard(cur.get_board());
+                    printBoardPlayers(true, 0, playerID);
+                    printf("A gentleman should keep silent while watching.\n\033[39C");
+                    flag = 3;
+                }
+                else if (strcmp(recvline, whiteTurn.c_str()) == 0) {
+                    printBoard(cur.get_board());
+                    printBoardPlayers(false, 0, playerID);
+                    printf("A gentleman should keep silent while watching.\n\033[39C");
+                    flag = 3;
+                }
+                // update board
+                else if (flag == 3) {
+                    cur.set_board(string(recvline));
+                    p = m = cur;
+                    flag = 0;
+                }
             }
         }
 		
@@ -174,13 +220,18 @@ void game(Player player) {
             if (fgets(sendline, MAXLINE, stdin) != NULL) {
                 // Players
                 if (player == 0 || player == 1) {
+                    if (strcmp(sendline, "exit\n") == 0) {
+                        write(sockfd, sendline, strlen(sendline));
+                        flag = 4;
+                        continue;
+                    }
                     // move
                     if (flag == 1) {
                         toMove = m.string_to_action(sendline);
                         if (toMove.size() != 2) {
                             printf("\033[28;40HIllegal action!\n");
                             printBoardPlayers(true, player, playerID);
-                            printf("Move _ to _ : ");
+                            printf("Move _ to _ :\n\033[39C");
                             continue;
                         }
                         bool illegal = false;
@@ -192,7 +243,7 @@ void game(Player player) {
                             else {
                                 printf("\033[28;40HIllegal action!\n");
                                 printBoardPlayers(true, player, playerID);
-                                printf("Move _ to _ : ");
+                                printf("Move _ to _ :\n\033[39C");
                                 illegal = true;
                                 break;
                             }
@@ -203,7 +254,7 @@ void game(Player player) {
                         }
                         printBoard(m.get_board());
                         printBoardPlayers(true, player, playerID);
-                        printf("Place _ (or reset move): ");
+                        printf("Place _ (or reset move):\n\033[39C");
                         p = m;
                         flag = 2;
                     }
@@ -213,13 +264,15 @@ void game(Player player) {
                             p = m = cur;
                             printBoard(cur.get_board());
                             printBoardPlayers(true, player, playerID);
+                            printf("Move _ to _ :\n\033[39C");
+                            flag = 1;
                             continue;
                         }
                         toPlace = p.string_to_action(sendline);
                         if (toPlace.size() != 1) {
                             printf("\033[28;40HIllegal action!\n");
                             printBoardPlayers(true, player, playerID);
-                            printf("Place _ (or reset move): ");
+                            printf("Place _ (or reset move):\n\033[39C");
                             continue;
                         }
                         vector<Action> legalActions = p.legal_actions();
@@ -229,7 +282,7 @@ void game(Player player) {
                         else {
                             printf("\033[28;40HIllegal action!\n");
                             printBoardPlayers(true, player, playerID);
-                            printf("Place _ (or reset move): ");
+                            printf("Place _ (or reset move):\n\033[39C");
                             p = m;
                             continue;
                         }
@@ -238,14 +291,18 @@ void game(Player player) {
                         sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
                         write(sockfd, sendline, strlen(sendline));
                         timerStop = true;
-                        pthread_join(timer_thread, NULL);
+                        pthread_join(timerThread, NULL);
                         flag = 3;
                     }
+                    
                 }
                 // Viewers
                 else {
 
                 }
+            }
+            else {
+                return;
             }
 			
         }
@@ -262,7 +319,7 @@ void game(Player player) {
                 printf("Move _ to _ : ");
 
                 timerStop = false;
-                pthread_create(&timer_thread, NULL, timer, NULL);
+                pthread_create(&timerThread, NULL, timer, NULL);
 
                 // move
                 while (fgets(sendline, MAXLINE, stdin) != NULL) {
@@ -335,7 +392,7 @@ void game(Player player) {
                 sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
                 write(sockfd, sendline, strlen(sendline));
                 timerStop = true;
-                pthread_join(timer_thread, NULL);
+                pthread_join(timerThread, NULL);
             }
             else {
                 printBoardPlayers(false, player, playerID);

@@ -9,7 +9,7 @@ using namespace std;
 
 string receivedData;
 ssize_t readline(int fd, char* buffer, size_t bufferSize) {
-    while (true) {
+    while (receivedData.size() < bufferSize) {
         size_t newlinePos = receivedData.find('\n');
         if (newlinePos != string::npos) {
             string line = receivedData.substr(0, newlinePos + 1);
@@ -21,7 +21,7 @@ ssize_t readline(int fd, char* buffer, size_t bufferSize) {
                 break;
             }
         }
-        size_t bytesRead = read(fd, buffer, bufferSize);
+        size_t bytesRead = read(fd, buffer, 1);
         if (bytesRead <= 0) {
             return bytesRead;
         }
