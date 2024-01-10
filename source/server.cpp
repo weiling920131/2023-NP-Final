@@ -106,12 +106,14 @@ void *game_room(void* room_id_void){
                 for (auto& x: players_fd[room_id]) {
                     std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
                     int available = it - connfd.begin();
-                    connfd[available] = x;
+                    if(available >= MAX_CLIENT) close(x);
+                    else connfd[available] = x;
                 }
                 for (auto& x: viewers_fd[room_id]) {
                     std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
                     int available = it - connfd.begin();
-                    connfd[available] = x;
+                    if(available >= MAX_CLIENT) close(x);
+                    else connfd[available] = x;
                 }
                 players_fd[room_id].clear();
                 viewers_fd[room_id].clear();
@@ -280,6 +282,9 @@ int main(int argc, char **argv){
 	int					listenfd;
     pid_t               childpid;
 	struct sockaddr_in	servaddr;
+    struct timeval myTimeval;
+    myTimeval.tv_sec = 5;  
+    myTimeval.tv_usec = 0; 
 
     printf("\033]0;Slither Server\007");
     printf("\033[=3h");
@@ -315,7 +320,7 @@ int main(int argc, char **argv){
             }
         }
         maxfdp1 = Max + 1;
-		select(maxfdp1, &rset, NULL, NULL, NULL);
+		select(maxfdp1, &rset, NULL, NULL, &myTimeval);
         // Accept client 
         if(FD_ISSET(listenfd, &rset)){
             
