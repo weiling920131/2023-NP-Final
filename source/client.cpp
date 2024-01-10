@@ -36,30 +36,47 @@ void *timer(void *arg) {
         if (timerStop) pthread_exit(NULL);
         m = sec / 60;
         s = sec % 60;
-        printf("\033[26;40H\033[0K\033[5;31m%02d : %02d\033[25;30m\n", m, s);
+        printf("\033[26;40H\033[0K\033[5;36m%02d:%02d\033[25;30m\n", m, s);
         sleep(1);
     }
     pthread_exit(NULL);
 }
 
 void game(Player player) {
-	// fd_set rset;
-    // int maxfdp1;
-    // bool stdinEOF, peerExit;
+	fd_set rset;
+    int maxfdp1, flag;
+    bool inRoom, hasSpace;
     vector<string> playerID(2), viewerID;
+    State cur, m, p;
+    vector<Action> toMove, toPlace;
 
     printSlither();
     printServ();
     printServMsg("Type your name to start the game.");
     printCli();
-    bool inRoom = false;
+    // input ID
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
+        inRoom = false;
+        hasSpace = false;
+        for (int i=0; i<strlen(sendline); i++) {
+            if (sendline[i] == ' ') {
+                printSlither();
+                printServ();
+                printServMsg("Type your name to start the game.");
+                printServMsg("Your name cannot contain spaces!\nPlease try another name.");
+                printCli();
+                hasSpace = true;
+                break;
+            }
+        }
+        if (hasSpace) continue;
         write(sockfd, sendline, strlen(sendline));
 
         // Waiting... or Game start
         if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
             printLoading();
             printf("\033[1A\033[0K\033[50CConnection error\n");
+            printf("\033[29H");
             return;
         }
         recvline[n] = 0;
@@ -78,8 +95,6 @@ void game(Player player) {
     }
     if (!inRoom) return;
 
-    State cur, m, p;
-
     if (player == 0) {
         printBoard(cur.get_board());
         printBoardPlayer();
@@ -91,6 +106,7 @@ void game(Player player) {
     if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
         printLoading();
         printf("\033[1A\033[0K\033[50CConnection error\n");
+        printf("\033[29H");
         return;
     }
     recvline[n] = 0;
@@ -98,32 +114,145 @@ void game(Player player) {
     iss >> playerID[0];
     iss >> playerID[1];
 
-    // Someone's turn!
-    if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
-        printLoading();
-        printf("\033[1A\033[0K\033[50CConnection error\n");
-        return;
+
+    flag = 0;
+    for ( ; ; ) {
+        FD_ZERO(&rset);
+		maxfdp1 = 0;
+        FD_SET(sockfd, &rset);
+        maxfdp1 = sockfd;
+        FD_SET(STDIN_FILENO, &rset);
+        maxfdp1 = max(maxfdp1, STDIN_FILENO);
+		
+        maxfdp1++;
+        select(maxfdp1, &rset, NULL, NULL, NULL);
+
+        if (FD_ISSET(sockfd, &rset)) {  /* socket is readable */
+            if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
+                printLoading();
+                printf("\033[1A\033[0K\033[50CConnection error\n");
+                printf("\033[29H");
+                return;
+            }
+            recvline[n] = 0;
+
+            if (strcmp(recvline, "BYE\n") == 0) {
+                return;
+            }
+			// Players
+            if (player == 0 || player == 1) {
+                if (strcmp(recvline, "Your turn!\n") == 0) {
+                    printBoard(cur.get_board());
+                    printBoardPlayers(true, player, playerID);
+                    printf("Move _ to _ : ");
+
+                    timerStop = false;
+                    pthread_create(&timer_thread, NULL, timer, NULL);
+                    flag = 1;
+                }
+                // other's turn
+                else if (flag == 0){
+                    printBoardPlayers(false, player, playerID);
+                    printf("%s", recvline);
+                    flag = 3;
+                }
+                // update board
+                else if (flag == 3) {
+                    cur.set_board(string(recvline));
+                    p = m = cur;
+                    printBoard(cur.get_board());
+                    flag = 0;
+                }
+            }
+            // Viewers
+            else {
+
+            }
+        }
+		
+        if (FD_ISSET(STDIN_FILENO, &rset)) {  /* input is readable */
+            if (fgets(sendline, MAXLINE, stdin) != NULL) {
+                // Players
+                if (player == 0 || player == 1) {
+                    // move
+                    if (flag == 1) {
+                        toMove = m.string_to_action(sendline);
+                        if (toMove.size() != 2) {
+                            printf("\033[28;40HIllegal action!\n");
+                            printBoardPlayers(true, player, playerID);
+                            printf("Move _ to _ : ");
+                            continue;
+                        }
+                        bool illegal = false;
+                        for (auto action: toMove) {
+                            vector<Action> legalActions = m.legal_actions();
+                            if (std::find(legalActions.begin(), legalActions.end(), action) != legalActions.end()) {
+                                m.apply_action(action);
+                            }
+                            else {
+                                printf("\033[28;40HIllegal action!\n");
+                                printBoardPlayers(true, player, playerID);
+                                printf("Move _ to _ : ");
+                                illegal = true;
+                                break;
+                            }
+                        }
+                        if (illegal) {
+                            m = cur;
+                            continue;
+                        }
+                        printBoard(m.get_board());
+                        printBoardPlayers(true, player, playerID);
+                        printf("Place _ (or reset move): ");
+                        p = m;
+                        flag = 2;
+                    }
+                    // place
+                    else if (flag == 2) {
+                        if (strcmp(sendline, "reset\n") == 0) {
+                            p = m = cur;
+                            printBoard(cur.get_board());
+                            printBoardPlayers(true, player, playerID);
+                            continue;
+                        }
+                        toPlace = p.string_to_action(sendline);
+                        if (toPlace.size() != 1) {
+                            printf("\033[28;40HIllegal action!\n");
+                            printBoardPlayers(true, player, playerID);
+                            printf("Place _ (or reset move): ");
+                            continue;
+                        }
+                        vector<Action> legalActions = p.legal_actions();
+                        if (std::find(legalActions.begin(), legalActions.end(), toPlace[0]) != legalActions.end()) {
+                            p.apply_action(toPlace[0]);
+                        }
+                        else {
+                            printf("\033[28;40HIllegal action!\n");
+                            printBoardPlayers(true, player, playerID);
+                            printf("Place _ (or reset move): ");
+                            p = m;
+                            continue;
+                        }
+                        printBoard(p.get_board());
+                        printBoardPlayers(true, player, playerID);
+                        sprintf(sendline, "%d %d %d\n", toMove[0], toMove[1], toPlace[0]);
+                        write(sockfd, sendline, strlen(sendline));
+                        timerStop = true;
+                        pthread_join(timer_thread, NULL);
+                        flag = 3;
+                    }
+                }
+                // Viewers
+                else {
+
+                }
+            }
+			
+        }
+
+
     }
-    recvline[n] = 0;
-    printBoard(cur.get_board());
-
-    // stdinEOF = false;
-    // peerExit = false;
-    // for( ; ; ){
-    //     FD_ZERO(&rset);
-	// 	maxfdp1 = 0;
-    //     if (!stdinEOF) {
-    //         FD_SET(STDIN_FILENO, &rset);
-	// 		maxfdp1 = STDIN_FILENO;
-	// 	}
-	// 	if (!peerExit) {
-	// 		FD_SET(sockfd, &rset);
-	// 		maxfdp1 = max(maxfdp1, sockfd);
-	// 	}
-    //     maxfdp1++;
-    //     Select(maxfdp1, &rset, NULL, NULL, NULL);
-
-    // }
+    /*
     while (1) {
         vector<Action> toMove, toPlace;
         // Players
@@ -237,6 +366,7 @@ void game(Player player) {
         }
         recvline[n] = 0;
     }
+    */
 }
 
 int main(int argc, char **argv) {
@@ -259,19 +389,22 @@ int main(int argc, char **argv) {
 
 	if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) {
         printf("\033[1A\033[0K\033[50CConnection error\n");
+        printf("\033[29H");
         return 0;
     }
 
     // Connect successfully!
     if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
         printf("\033[1A\033[0K\033[50CConnection error\n");
+        printf("\033[29H");
         return 0;
     }
 
     printSlither();
     printServ();
     printServMsg("Welcome to Slither!"); printf("\n");
-    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room.");
+    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room."); printf("\n");
+    printServMsg("Type \033[32mexit\033[30m to quit the game.");
 
     printCli();
     // 0: C or E; 1: 0-9 or R; 2: deadend;
@@ -283,12 +416,21 @@ int main(int argc, char **argv) {
             if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
+                printf("\033[29H");
                 return 0;
             }
             recvline[n] = 0;
             if (strcmp(recvline, "Player1\n") == 0) {
                 game(0);
                 if (n <= 0) return 0;
+                else {
+                    flag = 0;
+                    printSlither();
+                    printServ();
+                    printServMsg("Welcome to Slither!"); printf("\n");
+                    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room."); printf("\n");
+                    printServMsg("Type \033[32mexit\033[30m to quit the game.");
+                }
             }
             else {
                 printServ();
@@ -302,6 +444,7 @@ int main(int argc, char **argv) {
             if ((n = read(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
+                printf("\033[29H");
                 return 0;
             }
             recvline[n] = 0;
@@ -328,16 +471,33 @@ int main(int argc, char **argv) {
             if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
                 printLoading();
                 printf("\033[1A\033[0K\033[50CConnection error\n");
+                printf("\033[29H");
                 return 0;
             }
             recvline[n] = 0;
             if (strcmp(recvline, "Player2\n") == 0) {
                 game(1);
                 if (n <= 0) return 0;
+                else {
+                    flag = 0;
+                    printSlither();
+                    printServ();
+                    printServMsg("Welcome to Slither!"); printf("\n");
+                    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room."); printf("\n");
+                    printServMsg("Type \033[32mexit\033[30m to quit the game.");
+                }
             }
             else if (strcmp(recvline, "Viewer\n") == 0) {
                 game(2);
                 if (n <= 0) return 0;
+                else {
+                    flag = 0;
+                    printSlither();
+                    printServ();
+                    printServMsg("Welcome to Slither!"); printf("\n");
+                    printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room."); printf("\n");
+                    printServMsg("Type \033[32mexit\033[30m to quit the game.");
+                }
             }
             else {
                 printSlither();
@@ -353,10 +513,20 @@ int main(int argc, char **argv) {
             printSlither();
             printServ();
             printServMsg("Welcome to Slither!"); printf("\n");
-            printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room.");
+            printServMsg("Type \033[32mC\033[30m to create a new room.\nType \033[32mE\033[30m to enter a room."); printf("\n");
+            printServMsg("Type \033[32mexit\033[30m to quit the game.");
+        }
+        else if (strcmp(sendline, "exit\n") == 0) {
+            break;
         }
         printCli();
     }
+
+    printSlither();
+    printServ();
+    printServMsg("Good bye!"); printf("\n");
+    printServMsg("Hope to see you again!");
+    printf("\033[29H");
 
     return 0;
 }

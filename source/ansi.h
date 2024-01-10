@@ -117,7 +117,7 @@ void init() {
     // set screen size
     printf("\033[8;30;120t");
     // unable scroll
-    printf("\033[?10071");
+    // printf("\033[?1005l");
     // set bold, black font, gray background
     printf("\033[1;30;100m");
     // make cursor invisible
