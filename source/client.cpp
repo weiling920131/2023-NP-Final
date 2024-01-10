@@ -34,14 +34,17 @@ void *timer(void *arg) {
     timesup = false;
     int m, s;
     for (int sec = 90; sec >= 0; sec--) {
-        if (timerStop) pthread_exit(NULL);
+        if (timerStop) {
+            printf("\033]0;Slither\007"); fflush(stdout);
+            pthread_exit(NULL);
+        }
         m = sec / 60;
         s = sec % 60;
-        printf("\033]0;%02d:%02d\007\n", m, s);
+        printf("\033]0;%02d:%02d\007", m, s); fflush(stdout);
         sleep(1);
     }
     timesup = true;
-    printf("\033]0;Slither\007\n");
+    printf("\033]0;Slither\007"); fflush(stdout);
     pthread_exit(NULL);
 }
 
@@ -52,6 +55,7 @@ void game(Player player) {
     vector<string> playerID(2), viewerID;
     State cur, m, p;
     vector<Action> toMove, toPlace;
+    string blackTurn, whiteTurn;
 
     struct timeval myTimeval;
     myTimeval.tv_sec = 3;  
@@ -88,7 +92,7 @@ void game(Player player) {
         }
         recvline[n] = 0;
 
-        if (strcmp(recvline, "Duplicate\n") == 0) {
+        if (strcmp(recvline, "Duplicate!\n") == 0) {
             printSlither();
             printServ();
             printServMsg("Type your name to start the game.");
@@ -106,29 +110,15 @@ void game(Player player) {
     if (player == 0 || player == 1) {
         printBoard(cur.get_board());
         printBoardPlayer();
-        printf("%s", recvline);
+        recvline[n-1] = 0;
+        printf("%s ", recvline); fflush(stdout);
     }
     // board
     else {
         cur.set_board(string(recvline));
     }
 
-    // players' ID
-    if ((n = readline(sockfd, recvline, MAXLINE)) <= 0) {
-        printLoading();
-        printf("\033[1A\033[0K\033[50CConnection error\n");
-        printf("\033[29H");
-        return;
-    }
-    recvline[n] = 0;
-    istringstream iss(recvline);
-    iss >> playerID[0];
-    iss >> playerID[1];
-
-    string  blackTurn = playerID[0] + "'s turn!\n", 
-            whiteTurn = playerID[1] + "'s turn!\n";
-
-    flag = 0;
+    flag = -1;
     for ( ; ; ) {
         FD_ZERO(&rset);
 		maxfdp1 = 0;
@@ -156,12 +146,25 @@ void game(Player player) {
                 }
                 printBoard(cur.get_board());
                 printBoardPlayers(true, 0, playerID);
-                printf("%s", recvline);
+                recvline[n-1] = 0;
+                printf("%s", recvline); fflush(stdout);
                 sleep(2);
                 return;
             }
+            // players' ID
+            if (flag == -1) {
+                istringstream iss(recvline);
+                iss >> playerID[0];
+                iss >> playerID[1];
+
+                blackTurn = playerID[0] + "'s turn!\n"; 
+                whiteTurn = playerID[1] + "'s turn!\n";
+
+                flag = 0;
+                continue;
+            }
 			// Players
-            if (player == 0 || player == 1) {
+            else if (player == 0 || player == 1) {
                 if (strcmp(recvline, "Your turn!\n") == 0) {
                     printBoard(cur.get_board());
                     printBoardPlayers(true, player, playerID);
@@ -176,8 +179,8 @@ void game(Player player) {
                 else if (flag == 0){
                     printBoard(cur.get_board());
                     printBoardPlayers(false, player, playerID);
-                    printf("%s", recvline);
-                    printf("\033[28;40H\033[0K");
+                    recvline[n-1] = 0;
+                    printf("%s ", recvline); fflush(stdout);
                     flag = 3;
                 }
                 // update board
@@ -193,13 +196,13 @@ void game(Player player) {
                 if (strcmp(recvline, blackTurn.c_str()) == 0) {
                     printBoard(cur.get_board());
                     printBoardPlayers(true, 0, playerID);
-                    printf("A gentleman should keep silent while watching. ");
+                    printf("A gentleman should keep silent while watching. "); fflush(stdout);
                     flag = 3;
                 }
                 else if (strcmp(recvline, whiteTurn.c_str()) == 0) {
                     printBoard(cur.get_board());
                     printBoardPlayers(false, 0, playerID);
-                    printf("A gentleman should keep silent while watching. ");
+                    printf("A gentleman should keep silent while watching. "); fflush(stdout);
                     flag = 3;
                 }
                 // update board
@@ -213,7 +216,8 @@ void game(Player player) {
 
         if (timesup) {
             timesup = false;
-            printf("\033[28;40HTime's up!\n");
+            printf("\033[28;40HTime's up!"); fflush(stdout);
+            sleep(1);
             cur.apply_action(25);
             cur.apply_action(25);
             sprintf(sendline, "%d %d %d\n", 25, 25, cur.legal_actions()[0]);

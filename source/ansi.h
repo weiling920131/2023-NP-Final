@@ -281,10 +281,6 @@ void printBoard(string board) {
     return;
 }
 
-void printBoardMsg(string msg) {
-
-}
-
 void printBoardPlayers(bool isYourTurn, int p, vector<string> ID) {
     if (isYourTurn) {
         if (p == 0) {
@@ -332,6 +328,7 @@ void printBoardPlayers(bool isYourTurn, int p, vector<string> ID) {
     printf("\033[?25h");
     // move cursor to middle
     printf("\033[27;40H\033[0K");
+    fflush(stdout);
     return;
 }
 
@@ -342,8 +339,8 @@ void printBoardPlayer() {
     }
     // move cursor to middle
     printf("\033[27;40H");
-    // make cursor invisible
-    printf("\033[?25l");
+    // make cursor visible
+    printf("\033[?25h");
     return;
 }
 

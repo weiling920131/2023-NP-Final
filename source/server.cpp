@@ -90,7 +90,7 @@ void *game_room(void* room_id_void){
             // Determine whether the game is terminal or not
             if(game.is_terminal() || terminal){
                 int winner = game.get_winner();
-                if(terminal && !game.is_terminal()) winner = 1 - game.current_player();
+                if(terminal && !game.is_terminal()) winner = i;
                 if(players_fd[room_id].size() == 1) winner = 0;
                 for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
                     sprintf(sendline, "%s win!\n", player_id[players_fd[room_id][winner]].c_str());
