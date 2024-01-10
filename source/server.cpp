@@ -86,7 +86,8 @@ void *game_room(void* room_id_void){
         maxfdp1 = Max + 1;
         select(maxfdp1, &rset, NULL, NULL, &myTimeval);
 
-        for(int i = 0;i<players_fd[room_id].size();i++){
+        vector<int> copy_players_fd(players_fd[room_id].begin(), players_fd[room_id].end());
+        for(int i = 0;i<copy_players_fd.size();i++){
             // Determine whether the game is terminal or not
             if(game.is_terminal() || terminal){
                 int winner = game.get_winner();
@@ -122,7 +123,7 @@ void *game_room(void* room_id_void){
                 pthread_exit(NULL);
             }
 
-            auto p = players_fd[room_id][i];
+            auto p = copy_players_fd[i];
 
             if(FD_ISSET(p, &rset)){
                 if(player_id.find(p) == player_id.end()){ // if the player is new
@@ -216,9 +217,9 @@ void *game_room(void* room_id_void){
         }
 
         
-
-        for(int i = 0;i<viewers_fd[room_id].size();i++){
-            auto p = viewers_fd[room_id][i];
+        vector<int> copy_viewers_fd(viewers_fd[room_id].begin(), viewers_fd[room_id].end());
+        for(int i = 0;i<copy_viewers_fd.size();i++){
+            auto p = copy_viewers_fd[i];
 
             if(FD_ISSET(p, &rset)){
                 if(player_id.find(p) == player_id.end()){ // if the player is new
