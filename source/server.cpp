@@ -247,6 +247,10 @@ void *game_room(void* room_id_void){
                     sprintf(sendline, "%s %s\n", player_id[players_fd[room_id][0]].c_str(), player_id[players_fd[room_id][1]].c_str());
                     write(p, sendline, strlen(sendline));
                     printf("To %d: %s", p, sendline);
+                    // current_player's turn
+                    sprintf(sendline, "%s's turn!\n", player_id[players_fd[room_id][game.current_player()]].c_str());
+                    write(p, sendline, strlen(sendline));
+                    printf("To %d: %s", p, sendline);
                 }
                 else{
                     if((n = readline(p, recvline, MAXLINE)) > 0) {
