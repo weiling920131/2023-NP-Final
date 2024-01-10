@@ -177,7 +177,6 @@ void game(Player player) {
                     printBoard(cur.get_board());
                     printBoardPlayers(false, player, playerID);
                     printf("%s", recvline);
-                    printf("\033[28;40H\033[0K");
                     flag = 3;
                 }
                 // update board
