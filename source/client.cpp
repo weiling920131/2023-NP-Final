@@ -69,11 +69,19 @@ void game(Player player) {
     while (fgets(sendline, MAXLINE, stdin) != NULL) {
         inRoom = false;
         hasSpace = false;
+        if (sendline[0] == '\n') {
+            printSlither();
+            printServ();
+            printServMsg("Type your name to start the game."); printf("\n");
+            printServMsg("Your name cannot be empty!\nPlease try another name.");
+            printCli();
+            continue;
+        }
         for (int i=0; i<strlen(sendline); i++) {
             if (sendline[i] == ' ') {
                 printSlither();
                 printServ();
-                printServMsg("Type your name to start the game.");
+                printServMsg("Type your name to start the game."); printf("\n");
                 printServMsg("Your name cannot contain spaces!\nPlease try another name.");
                 printCli();
                 hasSpace = true;
@@ -95,7 +103,7 @@ void game(Player player) {
         if (strcmp(recvline, "Duplicate!\n") == 0) {
             printSlither();
             printServ();
-            printServMsg("Type your name to start the game.");
+            printServMsg("Type your name to start the game."); printf("\n");
             printServMsg("It's already used!\nPlease try another name.");
             printCli();
         }

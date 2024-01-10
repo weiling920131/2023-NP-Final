@@ -139,8 +139,8 @@ void *game_room(void* room_id_void){
                     bool isDuplicate = false;
                     for (auto& id: player_id) {
                         if (id.second == string(recvline)){
-                            write(p, "Duplicate\n", 10);
-                            printf("To %d: Duplicate\n", p);
+                            write(p, "Duplicate!\n", 11);
+                            printf("To %d: Duplicate!\n", p);
                             isDuplicate = true;
                             break;
                         }
