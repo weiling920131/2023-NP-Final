@@ -51,7 +51,7 @@ void *timer(void *arg) {
 void game(Player player) {
 	fd_set rset;
     int maxfdp1, flag;
-    bool inRoom, hasSpace;
+    bool inRoom, hasSpace, hasRecv;
     vector<string> playerID(2), viewerID;
     State cur, m, p;
     vector<Action> toMove, toPlace;
@@ -119,6 +119,7 @@ void game(Player player) {
     }
 
     flag = -1;
+    hasRecv = false;
     for ( ; ; ) {
         FD_ZERO(&rset);
 		maxfdp1 = 0;
@@ -138,7 +139,10 @@ void game(Player player) {
                 return;
             }
             recvline[n] = 0;
-
+            hasRecv = true;
+        }
+        if (hasRecv) {
+            hasRecv = false;
             if (strlen(recvline) > strlen("win!\n") && string(recvline).substr(strlen(recvline) - strlen("win!\n")) == "win!\n") {
                 if (flag == 1 || flag == 2) {
                     timerStop = true;
@@ -216,7 +220,7 @@ void game(Player player) {
 
         if (timesup) {
             timesup = false;
-            printf("\033[28;40HTime's up!"); fflush(stdout);
+            printf("\033[28;40HTime's up! "); fflush(stdout);
             sleep(1);
             cur.apply_action(25);
             cur.apply_action(25);
@@ -302,12 +306,22 @@ void game(Player player) {
                         pthread_join(timerThread, NULL);
                         flag = 3;
                     }
+                    else if (flag == 3) {
+                        hasRecv = true;
+                        flag = 0;
+                        continue;
+                    }
                 }
                 // Viewers
                 else {
                     if (strcmp(sendline, "exit\n") == 0) {
                         write(sockfd, sendline, strlen(sendline));
                         return;
+                    }
+                    else {
+                        hasRecv = true;
+                        flag = 0;
+                        continue;
                     }
                 }
             }
