@@ -69,6 +69,8 @@ void *game_room(void* room_id_void){
 	fd_set		        rset;
     bool                terminal = false, haveSendId = false;
 
+    int exit_id;
+
     // Call entire game
     State game;
 
@@ -84,44 +86,45 @@ void *game_room(void* room_id_void){
             Max = max(Max, v);
         }
         maxfdp1 = Max + 1;
+        // Determine whether the game is terminal or not
+        if(game.is_terminal() || terminal){
+            int winner = game.get_winner();
+            if(terminal && !game.is_terminal()) winner = 1 - exit_id;
+            if(players_fd[room_id].size() == 1) winner = 0;
+            for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
+                sprintf(sendline, "%s win!\n", player_id[players_fd[room_id][winner]].c_str());
+                if(j < players_fd[room_id].size()){
+                    write(players_fd[room_id][j], sendline, strlen(sendline));
+                    printf("To %d: %s", players_fd[room_id][j], sendline);
+                }
+                if(j < viewers_fd[room_id].size()){
+                    write(viewers_fd[room_id][j], sendline, strlen(sendline));
+                    printf("To %d: %s", viewers_fd[room_id][j], sendline);
+                }
+            }
+            for (auto& x: players_fd[room_id]) {
+                std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
+                int available = it - connfd.begin();
+                if(available >= MAX_CLIENT) close(x);
+                else connfd[available] = x;
+            }
+            for (auto& x: viewers_fd[room_id]) {
+                std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
+                int available = it - connfd.begin();
+                if(available >= MAX_CLIENT) close(x);
+                else connfd[available] = x;
+            }
+            players_fd[room_id].clear();
+            viewers_fd[room_id].clear();
+            cur_room--;
+            printf("Room %d is terminal.\n", room_id);
+            pthread_exit(NULL);
+        }
         select(maxfdp1, &rset, NULL, NULL, &myTimeval);
+
 
         vector<int> copy_players_fd(players_fd[room_id].begin(), players_fd[room_id].end());
         for(int i = 0;i<copy_players_fd.size();i++){
-            // Determine whether the game is terminal or not
-            if(game.is_terminal() || terminal){
-                int winner = game.get_winner();
-                if(terminal && !game.is_terminal()) winner = i;
-                if(players_fd[room_id].size() == 1) winner = 0;
-                for(int j = 0;j < max(players_fd[room_id].size(), viewers_fd[room_id].size());j++){
-                    sprintf(sendline, "%s win!\n", player_id[players_fd[room_id][winner]].c_str());
-                    if(j < players_fd[room_id].size()){
-                        write(players_fd[room_id][j], sendline, strlen(sendline));
-                        printf("To %d: %s", players_fd[room_id][j], sendline);
-                    }
-                    if(j < viewers_fd[room_id].size()){
-                        write(viewers_fd[room_id][j], sendline, strlen(sendline));
-                        printf("To %d: %s", viewers_fd[room_id][j], sendline);
-                    }
-                }
-                for (auto& x: players_fd[room_id]) {
-                    std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
-                    int available = it - connfd.begin();
-                    if(available >= MAX_CLIENT) close(x);
-                    else connfd[available] = x;
-                }
-                for (auto& x: viewers_fd[room_id]) {
-                    std::vector<int>::iterator it = std::find(connfd.begin(), connfd.end(), -1);
-                    int available = it - connfd.begin();
-                    if(available >= MAX_CLIENT) close(x);
-                    else connfd[available] = x;
-                }
-                players_fd[room_id].clear();
-                viewers_fd[room_id].clear();
-                cur_room--;
-                printf("Room %d is terminal.\n", room_id);
-                pthread_exit(NULL);
-            }
 
             auto p = copy_players_fd[i];
 
@@ -155,6 +158,7 @@ void *game_room(void* room_id_void){
                     if((n = readline(p, recvline, MAXLINE)) > 0) {
                         recvline[n] = 0;
                         if(strcmp(recvline, "exit\n") == 0){
+                            exit_id = i;
                             terminal = true;
                             continue;
                         }
@@ -204,7 +208,7 @@ void *game_room(void* room_id_void){
                 }
             }
             
-            if(player_id.find(players_fd[room_id][0]) != player_id.end() && player_id.find(players_fd[room_id][1]) != player_id.end() && !haveSendId) {
+            if(players_fd[room_id].size() == 2 && player_id.find(players_fd[room_id][0]) != player_id.end() && player_id.find(players_fd[room_id][1]) != player_id.end() && !haveSendId) {
                 // send all players' id to all players
                 sprintf(sendline, "%s %s\n", player_id[players_fd[room_id][0]].c_str(), player_id[players_fd[room_id][1]].c_str());
                 write(players_fd[room_id][0], sendline, strlen(sendline));
@@ -366,6 +370,7 @@ int main(int argc, char **argv){
                                 printf("To %d: Player1\n", connfd[i]);
 
                                 players_fd[room_id].push_back(connfd[i]);
+                                pthread_join(my_thread[room_id], NULL);
                                 pthread_create(&my_thread[room_id], NULL, game_room, (void*)&room_id);
                                 cur_room++;
                                 connfd[i] = -1;
@@ -395,6 +400,7 @@ int main(int argc, char **argv){
                             write(connfd[i], "Player2\n", 8);
                             printf("To %d: Player2\n", connfd[i]);
                             players_fd[room_id].push_back(connfd[i]);
+                            printf("check1\n");
                             enter = true;
                             connfd[i] = -1;
                             break;
@@ -412,6 +418,7 @@ int main(int argc, char **argv){
                         write(connfd[i], "Player2\n", 8);
                         printf("To %d: Player2\n", connfd[i]);
                         players_fd[room_id].push_back(connfd[i]);
+                        printf("check2\n");
                         connfd[i] = -1;
                     }
                     else if(players_fd[room_id].size() == 2){ // Enter a room as a viewer
