@@ -216,6 +216,7 @@ void game(Player player) {
             cur.apply_action(25);
             sprintf(sendline, "%d %d %d\n", 25, 25, cur.legal_actions()[0]);
             write(sockfd, sendline, strlen(sendline));
+            flag == 3;
         }
 		
         if (FD_ISSET(STDIN_FILENO, &rset)) {  /* input is readable */
